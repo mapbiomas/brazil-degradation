@@ -1,2 +1,2 @@
 # brazil-degradation
-Acesse aqui a [plataforma](https://plataforma.brasil.mapbiomas.org/degradacao)
+[Acess here the platform](https://plataforma.brasil.mapbiomas.org/degradacao)
