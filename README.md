@@ -4,6 +4,8 @@
 </div>
 
 ## About
+Acess here the [Algorithm Theoretical Basis Document (ATBD)](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2024/07/atbd-modulo-beta-degradacao.pdf)
+
 ### Edge area
 ### Small-sized patches
 ### Habitat isolation
