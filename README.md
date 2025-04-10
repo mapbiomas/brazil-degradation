@@ -15,9 +15,9 @@ We utilized land use and land cover maps from Collection 8 and applied a systema
 
 ### Habitat isolation
 We defined three variables to be used in the analysis, each one with three factors:
-    1) Size of Target Patch: Area equal to or less than 25 hectares (ha), 50 ha, or 100 ha. The higher the value, the greater the number of fragments considered isolated.
-    2) Distance to Source Patch: Distance equal to or more than 5 kilometers (km), 10 km, or 20 km. Distance here represents a threshold of isolation tolerance. Therefore, lower values ​​indicate less tolerance, resulting in a greater number of isolated fragments in the landscape.
-    3) Size of Source Patch: Area equal to or greater than 100 ha, 500 ha, or 1000 ha. The higher the value, the smaller the number of source fragments in the landscape, resulting in a greater number of isolated fragments.
+1. Size of Target Patch: Area equal to or less than 25 hectares (ha), 50 ha, or 100 ha. The higher the value, the greater the number of fragments considered isolated.
+2. Distance to Source Patch: Distance equal to or more than 5 kilometers (km), 10 km, or 20 km. Distance here represents a threshold of isolation tolerance. Therefore, lower values ​​indicate less tolerance, resulting in a greater number of isolated fragments in the landscape.
+3. Size of Source Patch: Area equal to or greater than 100 ha, 500 ha, or 1000 ha. The higher the value, the smaller the number of source fragments in the landscape, resulting in a greater number of isolated fragments.
     
 To process this information in Google Earth Engine, we followed the steps:
 Resampling Data: We  resampled the data from Collection 8 with a spatial resolution of 30m to 100m. 
