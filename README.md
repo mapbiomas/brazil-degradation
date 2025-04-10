@@ -15,17 +15,17 @@ We utilized land use and land cover maps from Collection 8 and applied a systema
 
 ### Habitat isolation
 We defined three variables to be used in the analysis, each one with three factors:
-1. Size of Target Patch: Area equal to or less than 25 hectares (ha), 50 ha, or 100 ha. The higher the value, the greater the number of fragments considered isolated.
-2. Distance to Source Patch: Distance equal to or more than 5 kilometers (km), 10 km, or 20 km. Distance here represents a threshold of isolation tolerance. Therefore, lower values ​​indicate less tolerance, resulting in a greater number of isolated fragments in the landscape.
-3. Size of Source Patch: Area equal to or greater than 100 ha, 500 ha, or 1000 ha. The higher the value, the smaller the number of source fragments in the landscape, resulting in a greater number of isolated fragments.
+1. **Size of Target Patch**: Area equal to or less than 25 hectares (ha), 50 ha, or 100 ha. The higher the value, the greater the number of fragments considered isolated.
+2. **Distance to Source Patch**: Distance equal to or more than 5 kilometers (km), 10 km, or 20 km. Distance here represents a threshold of isolation tolerance. Therefore, lower values ​​indicate less tolerance, resulting in a greater number of isolated fragments in the landscape.
+3. **Size of Source Patch**: Area equal to or greater than 100 ha, 500 ha, or 1000 ha. The higher the value, the smaller the number of source fragments in the landscape, resulting in a greater number of isolated fragments.
     
 To process this information in Google Earth Engine, we followed the steps:
-Resampling Data: We  resampled the data from Collection 8 with a spatial resolution of 30m to 100m. 
-Exporting Native Vegetation Data: We  exported  native vegetation data grouped into two categories:  “forest” (including Forest Formation, Savanna Formation, Mangrove, Flooded Forest, and Wooded Sandbank Vegetation) and “Non-Forest” (including Wetland, Grassland, and Herbaceous Sandbank Vegetation).  Exclusively for the Pantanal, the water class was also considered a ‘pseudo’ native vegetation as Non-Forest. 
-Creating Connected Natural Areas Mask: We  exported a mask of connected natural areas with up to 1024 pixels, which allowed us  to separate forest and non-forest areas into categories of more than 100 hectares (100 pixels), 500 hectares (500 pixels), and 1,000 hectares (1,000 pixels), representing the “source patch” maps. 
-Generating Distance Map: Using the ee.Kernel.euclidean() distance function in the Google Earth Engine, we generated a distance map from source patches, classifying distances into categories of equal to or greater than 5km, 10km, and 20km. 
-Removing Large Fragments: We used the same databases  as a mask to remove all fragments over 100 hectares. This generated a database of natural areas with an area equal to or less than 100 hectares.
-Reclassifying Target Fragments: The remaining natural areas were  reclassified to generate the layer of target fragments: natural areas with an area equal to or less than 25 hectares, 50 ha, and 100 ha.
+- **Resampling Data**: We  resampled the data from Collection 8 with a spatial resolution of 30m to 100m. 
+- **Exporting Native Vegetation Data**: We  exported  native vegetation data grouped into two categories:  “forest” (including Forest Formation, Savanna Formation, Mangrove, Flooded Forest, and Wooded Sandbank Vegetation) and “Non-Forest” (including Wetland, Grassland, and Herbaceous Sandbank Vegetation).  Exclusively for the Pantanal, the water class was also considered a ‘pseudo’ native vegetation as Non-Forest. 
+- **Creating Connected Natural Areas Mask**: We  exported a mask of connected natural areas with up to 1024 pixels, which allowed us  to separate forest and non-forest areas into categories of more than 100 hectares (100 pixels), 500 hectares (500 pixels), and 1,000 hectares (1,000 pixels), representing the “source patch” maps. 
+- **Generating Distance Map**: Using the ee.Kernel.euclidean() distance function in the Google Earth Engine, we generated a distance map from source patches, classifying distances into categories of equal to or greater than 5km, 10km, and 20km. 
+- **Removing Large Fragments**: We used the same databases  as a mask to remove all fragments over 100 hectares. This generated a database of natural areas with an area equal to or less than 100 hectares.
+- **Reclassifying Target Fragments**: The remaining natural areas were  reclassified to generate the layer of target fragments: natural areas with an area equal to or less than 25 hectares, 50 ha, and 100 ha.
 
 ### Fire
 ### Secondary Vegetation
