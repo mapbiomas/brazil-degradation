@@ -4,7 +4,11 @@
 </div>
 
 ## About
-Text 
+### Edge area
+### Small-sized patches
+### Habitat isolation
+### Fire
+### Secondary Vegetation
 
 ## How to use 
 
