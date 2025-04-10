@@ -32,8 +32,17 @@ The burned area frequency maps represent how many times the same pixel was mappe
 To create these maps, we retrieved yearly burned areas from MapBiomas Fire Collection 2. We computed the fire frequency by binarizing yearly burned areas for each year (1= burned, 0= unburned) and summing the fire occurrences across years. This data also includes the land use and cover classes from MapBiomas Collection 9 for the last year. For more details, see the [MapBiomas Fire ATBD](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2023/08/ATBD_-_MapBiomas_Fogo_-_Colecao_2.pdf).
 
 ### Secondary Vegetation
+Using the MapBiomas Deforestation and Secondary Vegetation dataset (see [Deforestation and Secondary Vegetation ATBD](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2024/04/Deforestation-_-Secondary-Vegetation-Appendix-ATBD-Collection-8.docx.pdf)), we map the regrowth of native vegetation by year and compute the age (in years) of regrowth for each pixel.
+The process is as follows:
+1. Initial Mapping: Identify areas of deforestation and secondary vegetation for each year using the MapBiomas dataset.
+2. Regrowth Calculation: For each year following deforestation, increment the regrowth age of each pixel by +1. This is done annually, starting from the year of deforestation.
+3. Age Computation: The age of regrowth for each pixel is determined by summing the years of regrowth. For example, if a pixel was deforested in 2010 and identified as secondary vegetation in subsequent years, by 2022, the pixel would have 12 years of regrowth.
+4. 
+This method allows for the calculation of the precise age of secondary vegetation regrowth for each pixel, providing valuable information on the recovery and resilience of ecosystems over time.
 
 ## How to use 
+1. [Create an account](https://signup.earthengine.google.com/) in Google Earth Engine plataform.
+2. Download or clone this repository to your local workspace.
 
 ## Contact
 For clarification or issue/bug report, please write to <dhemerson.costa@ipam.org.br>
