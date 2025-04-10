@@ -8,8 +8,25 @@ Welcome to the Degradation Driver Layers repository for the MapBiomas Degradatio
 
 Below, we provide a brief overview of the methodology used to generate each of the degradation driver layers.
 ### Edge area
+First, we utilized annual land use and land cover data from Collection 8,  then we standardized the native vegetation classes to a single class for each year to avoid edge area between different  vegetation types. For example, areas of Savanna Formation do not produce edge areas over areas of Forest Formation. Furthermore, we considered that Rocky Outcrop (ID 29), Hypersaline Tidal Flat (32), and Water (33) classes should also not generate edge areas over native vegetation classes. We thentreated all anthropic use classes as a single class and employed the ee.Kernel.euclidean() function in Google Earth Engine to calculate the distance of edge areas over native vegetation. This was achieved by considering buffers of 30, 60, 90, 120, 150, 300, 600, and 1000 meters. It is important to note that we did not differentiate or weigh the edge area based on its source (e.g., Pasture, Agriculture, or Urban). All the buffers were considered equal, regardless of the source class. 
+
 ### Small-sized patches
+We utilized land use and land cover maps from Collection 8 and applied a systematic approach to consolidate native vegetation classes into a single class each year. This method ensures that spatially connected native vegetation types are treated as a single patch. In the case of Pantanal, the water class was also considered as “pseudo” native vegetation in the algorithm. Subsequently, by using the .connectedPixelCount() function in Google Earth Engine, we computed the area of each native vegetation patch in hectares. The patches were then categorized based on their area: patches equal to or less than 3 hectares (ha), 5 ha, 10 ha, 25 ha, 50 ha, and 75 ha. All patches larger than 75 ha were excluded from this data layer.
+
 ### Habitat isolation
+We defined three variables to be used in the analysis, each one with three factors:
+    1) Size of Target Patch: Area equal to or less than 25 hectares (ha), 50 ha, or 100 ha. The higher the value, the greater the number of fragments considered isolated.
+    2) Distance to Source Patch: Distance equal to or more than 5 kilometers (km), 10 km, or 20 km. Distance here represents a threshold of isolation tolerance. Therefore, lower values ​​indicate less tolerance, resulting in a greater number of isolated fragments in the landscape.
+    3) Size of Source Patch: Area equal to or greater than 100 ha, 500 ha, or 1000 ha. The higher the value, the smaller the number of source fragments in the landscape, resulting in a greater number of isolated fragments.
+    
+To process this information in Google Earth Engine, we followed the steps:
+Resampling Data: We  resampled the data from Collection 8 with a spatial resolution of 30m to 100m. 
+Exporting Native Vegetation Data: We  exported  native vegetation data grouped into two categories:  “forest” (including Forest Formation, Savanna Formation, Mangrove, Flooded Forest, and Wooded Sandbank Vegetation) and “Non-Forest” (including Wetland, Grassland, and Herbaceous Sandbank Vegetation).  Exclusively for the Pantanal, the water class was also considered a ‘pseudo’ native vegetation as Non-Forest. 
+Creating Connected Natural Areas Mask: We  exported a mask of connected natural areas with up to 1024 pixels, which allowed us  to separate forest and non-forest areas into categories of more than 100 hectares (100 pixels), 500 hectares (500 pixels), and 1,000 hectares (1,000 pixels), representing the “source patch” maps. 
+Generating Distance Map: Using the ee.Kernel.euclidean() distance function in the Google Earth Engine, we generated a distance map from source patches, classifying distances into categories of equal to or greater than 5km, 10km, and 20km. 
+Removing Large Fragments: We used the same databases  as a mask to remove all fragments over 100 hectares. This generated a database of natural areas with an area equal to or less than 100 hectares.
+Reclassifying Target Fragments: The remaining natural areas were  reclassified to generate the layer of target fragments: natural areas with an area equal to or less than 25 hectares, 50 ha, and 100 ha.
+
 ### Fire
 ### Secondary Vegetation
 
