@@ -40,9 +40,13 @@ The process is as follows:
 
 This method allows for the calculation of the precise age of secondary vegetation regrowth for each pixel, providing valuable information on the recovery and resilience of ecosystems over time.
 
-## How to use 
-1. [Create an account](https://signup.earthengine.google.com/) in Google Earth Engine plataform.
-2. Download or clone this repository to your local workspace.
+## How to Run
+
+All scripts are designed to be executed in [Google Earth Engine](https://code.earthengine.google.com/). To run:
+
+1. Open the Earth Engine code editor.
+2. Copy and paste the desired script from the `*.js` files.
+3. Modify parameters as needed (e.g., year, region).
 
 ## Contact
 For clarification or issue/bug report, please write to <dhemerson.costa@ipam.org.br>
