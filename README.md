@@ -28,6 +28,9 @@ To process this information in Google Earth Engine, we followed the steps:
 - **Reclassifying Target Fragments**: The remaining natural areas were  reclassified to generate the layer of target fragments: natural areas with an area equal to or less than 25 hectares, 50 ha, and 100 ha.
 
 ### Fire
+The burned area frequency maps represent how many times the same pixel was mapped as burned over a period from 1985 to 2022. Fire frequency data is aggregated into a single map with 38 classes: Class 1 represents pixels that burned once, Class 2 represents pixels that burned twice, and so on.
+To create these maps, we retrieved yearly burned areas from MapBiomas Fire Collection 2. We computed the fire frequency by binarizing yearly burned areas for each year (1= burned, 0= unburned) and summing the fire occurrences across years. This data also includes the land use and cover classes from MapBiomas Collection 9 for the last year. For more details, see the [MapBiomas Fire ATBD](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2023/08/ATBD_-_MapBiomas_Fogo_-_Colecao_2.pdf).
+
 ### Secondary Vegetation
 
 ## How to use 
