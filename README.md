@@ -3,4 +3,12 @@
     <h1>Brazil's Degradation Module</h1>
 </div>
 
+## About
+Text 
+
+## How to use 
+
+## Contact
+For clarification or issue/bug report, please write to <dhemerson.costa@ipam.org.br>
+
 
