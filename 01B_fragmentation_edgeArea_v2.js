@@ -105,11 +105,11 @@ years_list.forEach(function(year_j) {
                                       .set('description', 'EDGE AREA');
 
     
-  Map.addLayer(edge_degrad_year, {palette:['red', 'yellow', 'green'], min:1, max:1000}, String(year_j));
+  Map.addLayer(edge_degrad_year.round().int16(), {palette:['red', 'yellow', 'green'], min:1, max:1000}, String(year_j));
   
   // Edge area
   Export.image.toAsset({
-  	image: edge_degrad_year,
+  	image: edge_degrad_year.round().int16(),
     description: 'EDGE-AREA' + '-' + year_j + '-' + version,
     assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/edge-area/' +  'EDGE-AREA' + '-' + year_j + '-' + version,
     region: biomes.geometry(),
@@ -120,5 +120,3 @@ years_list.forEach(function(year_j) {
 
 
 });
-
-
