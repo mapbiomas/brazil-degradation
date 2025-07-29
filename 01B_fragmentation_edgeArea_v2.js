@@ -81,12 +81,15 @@ years_list.forEach(function(year_j) {
     var anthropogenic = native_mask.updateMask(native_mask.eq(21));
     
     // compute edge 
-    var edge = anthropogenic.distance(ee.Kernel.euclidean(5000, 'meters'), false);
+    var edge = anthropogenic.distance(ee.Kernel.euclidean(7500, 'meters'), false);
 
     // remove edges over ignored classes
     ignore_classes[biome_k].forEach(function(class_m) {
       edge = edge.updateMask(collection_i.neq(class_m));
     });
+    
+    // limit to 7km
+    edge_degrad_year = edge_degrad_year.updateMask(edge_degrad_year.lte(7000));
     
     // blend edge into recipe
     edge_degrad_year = edge_degrad_year.blend(edge).selfMask();
@@ -105,7 +108,7 @@ years_list.forEach(function(year_j) {
                                       .set('description', 'EDGE AREA');
 
     
-  Map.addLayer(edge_degrad_year.round().int16(), {palette:['red', 'yellow', 'green'], min:1, max:1000}, String(year_j));
+  Map.addLayer(edge_degrad_year.round().int16(), {palette:['red', 'yellow', 'green'], min:1, max:7000}, String(year_j));
   
   // Edge area
   Export.image.toAsset({
