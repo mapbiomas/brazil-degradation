@@ -103,7 +103,7 @@ years_list.forEach(function(year_j) {
   Export.image.toAsset({
   	image: patch_degrad_year.round().int16(),
     description: 'PATCH_SIZE' + '-' + year_j + '-' + version,
-    assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-size/' +  'EDGE-AREA' + '-' + year_j + '-' + version,
+    assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-size/' +  'PATCH-SIZE' + '-' + year_j + '-' + version,
     region: biomes.geometry(),
     scale: 30,
     maxPixels: 1e13,
