@@ -1,4 +1,4 @@
-var v_out = '3'
+var v_out = '1'
 
 // Importa o módulo de paletas de cores do MapBiomas e define uma paleta de visualização
 var Palettes = require('users/mapbiomas/modules:Palettes.js');
@@ -19,7 +19,7 @@ var vis = {
 var anos = [1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,1995,1996,
             1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,
             2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,
-            2021,2022,2023];
+            2021,2022,2023, 2024];
 
 // Loop que processa as imagens de floresta e não floresta para cada ano
 for (var i_ano = 0; i_ano < anos.length; i_ano++) {
@@ -28,7 +28,7 @@ for (var i_ano = 0; i_ano < anos.length; i_ano++) {
     // Carrega a máscara de floresta e de não floresta para o ano atual
 //    var forestMask_ano = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col9/forestMask85a23_100m_v1')
 //                           .select('forest_' + ano);
-    var naturalMask_ano = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col9_v2/natural_Mask85a23_100m_v2')
+    var naturalMask_ano = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/natural_Mask85a24_100m_v1')
                               .select('natural_' + ano);
 
     // Calcula o número de pixels conectados para as áreas de floresta e não floresta (1024 pixels, conectados em 8 direções)
@@ -42,36 +42,26 @@ for (var i_ano = 0; i_ano < anos.length; i_ano++) {
     // Inicializa ou adiciona as bandas aos dados combinados para todos os anos
     if (i_ano == 0) { 
 //        var forestMask85a23_100m_conn = forestMask_ano;
-        var naturalMask85a23_100m_conn = naturalMask_ano;
+        var naturalMask85a24_100m_conn = naturalMask_ano;
     } else {
 //        forestMask85a23_100m_conn = forestMask85a23_100m_conn.addBands(forestMask_ano);
-        naturalMask85a23_100m_conn = naturalMask85a23_100m_conn.addBands(naturalMask_ano);
+        naturalMask85a24_100m_conn = naturalMask85a24_100m_conn.addBands(naturalMask_ano);
     }
 }
 
 // Exibe as máscaras finais no console
 //print('forestMask85a23_100m_conn', forestMask85a23_100m_conn);
-print('naturalMask85a23_100m_conn', naturalMask85a23_100m_conn);
+print('naturalMask85a24_100m_conn', naturalMask85a24_100m_conn);
 
 // Define o diretório de saída para a exportação das imagens
-var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col9_v2/';
+var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/';
 
-// Exporta a máscara de floresta com conectividade para o asset do usuário
-//Export.image.toAsset({
-//    "image": forestMask85a23_100m_conn.toInt16(),
-//    "description": 'forestMask85a23_100m_v'+v_out+'_conn',
-//    "assetId": dirout + 'forestMask85a23_100m_v'+v_out+'_conn',
-//    "scale": 100,
-//    "pyramidingPolicy": {'.default': 'mode'},
-//    "maxPixels": 1e13,
-//    "region": geometry
-//});
 
 // Exporta a máscara de não floresta com conectividade para o asset do usuário
 Export.image.toAsset({
-    "image": naturalMask85a23_100m_conn.toInt16(),
-    "description": 'natural_Mask85a23_100m_v'+v_out+'_conn',
-    "assetId": dirout + 'natural_Mask85a23_100m_v'+v_out+'_conn',
+    "image": naturalMask85a24_100m_conn.toInt16(),
+    "description": 'natural_Mask85a24_100m_v'+v_out+'_conn',
+    "assetId": dirout + 'natural_Mask85a24_100m_v'+v_out+'_conn',
     "scale": 100,
     "pyramidingPolicy": {'.default': 'mode'},
     "maxPixels": 1e13,
