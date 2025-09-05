@@ -262,13 +262,13 @@ Export.image.toAsset({
 Export.image.toAsset({
    "image": distances500ha.toInt16(),
    "description": 'isolation_500ha_col10'+'_v' + v_out,
-   "assetId": dirout + 'isolation_100ha_col10'+'_v' + v_out,
+   "assetId": dirout + 'isolation_500ha_col10'+'_v' + v_out,
    "scale": 100, "pyramidingPolicy": {'.default': 'mode'},"maxPixels": 1e13, "region": geometry
   });  
   
 Export.image.toAsset({
    "image": distances1000ha.toInt16(),
    "description": 'isolation_1000ha_col10'+'_v' + v_out,
-   "assetId": dirout + 'isolation_100ha_col10'+'_v' + v_out,
+   "assetId": dirout + 'isolation_1000ha_col10'+'_v' + v_out,
    "scale": 100, "pyramidingPolicy": {'.default': 'mode'},"maxPixels": 1e13, "region": geometry
   });  
