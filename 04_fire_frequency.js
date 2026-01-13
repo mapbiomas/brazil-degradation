@@ -4,21 +4,20 @@
 
 
 // --- --- --- DATASETS
-// read coverage by mapbiomas collection 9
-var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1');
+// read coverage by mapbiomas collection 10
+var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2');
 // --- --- FIRE recurrence
-// read recurrence fire by mapbiomas fogo collection 3.1
-var recurrence = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection3_1/mapbiomas_fire_collection31_fire_recurrence_v1');
+// read recurrence fire by mapbiomas fogo collection 4
+var recurrence = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection4/mapbiomas_fire_collection4_fire_frequency_v1');
 
 // get geometry for export params
 var region = coverage.geometry();
-
 
 // --- --- --- PROCESS
 // formated image for recurrence information
 var fire_recurrence = recurrence
   .int16()
-  .slice(0,39);
+  .slice(0,40);
   // .aside(print);
 
 // --- --- NATIVE COVERAGE
@@ -49,7 +48,7 @@ var fire_recurrence_native_coverege = fire_recurrence
 var oldBands = fire_recurrence_native_coverege.bandNames();
 var newBands = oldBands.iterate(function(current,previous){
   return ee.List(previous)
-    .add(ee.String('recurrence_').cat(ee.String(current).slice(-4)));
+    .add(ee.String('fire_frequency_').cat(ee.String(current).slice(-4)));
 },[]);
 
 fire_recurrence_native_coverege = fire_recurrence_native_coverege
@@ -69,41 +68,42 @@ var visParams = {
     min:0,
     max:3800,
     palette:[],
-    bands:['recurrence_2022']
+    bands:['fire_frequency_2022']
   },
   recurrence_2:{
     min:0,
     max:38,
     palette:[],
-    bands:['fire_recurrence_1985_2022']
+    bands:['fire_frequency_1985_2022']
   }
 };
 
-Map.addLayer(region,{},'region',false);
-Map.addLayer(coverage,visParams.coverage,'coverage');
-Map.addLayer(native_coverage,visParams.coverage,'native_coverage');
+//Map.addLayer(region,{},'region',false);
+//Map.addLayer(coverage,visParams.coverage,'coverage');
+//Map.addLayer(native_coverage,visParams.coverage,'native_coverage');
 
-Map.addLayer(fire_recurrence_native_coverege,visParams.recurrence,'fire_recurrence_native_coverege');
-Map.addLayer(fire_recurrence,visParams.recurrence_2,'fire_recurrence');
+//Map.addLayer(fire_recurrence_native_coverege,visParams.recurrence,'fire_recurrence_native_coverege');
+//Map.addLayer(fire_recurrence,visParams.recurrence_2,'fire_recurrence');
+Map.addLayer(fire_recurrence_native_coverege, {}, 'freq + class');
 
 // --- --- --- EXPORT
 
 // Set properties in metadata image
 var properties = {
   'version': 1,
-  'product':'recurrence'
+  'product':'frequency'
 };
 // set export image
 var recipe = fire_recurrence_native_coverege.set(properties);
-var description = 'recurrence_col9_v'+ properties.version;
-var assetId = 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/fire/' + description;
+var description = 'fireFreq_col10_v'+ properties.version;
+var assetId = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/' + description;
 
 print(ui.Label('Exporting image:'),recipe,ui.Label(' for address:'+assetId));
 
 // export
  Export.image.toAsset({
 	image: recipe,
-  description:'fire-'+ description,
+  description: 'fireFreq-'+ description,
   assetId: assetId,
   region: region,
   pyramidingPolicy:'mode',
