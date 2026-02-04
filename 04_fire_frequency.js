@@ -95,7 +95,7 @@ var properties = {
 };
 // set export image
 var recipe = fire_recurrence_native_coverege.set(properties);
-var description = 'fireFreq_col10_v'+ properties.version;
+var description = 'degradation-fireFrequency-col10_v'+ properties.version;
 var assetId = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/' + description;
 
 print(ui.Label('Exporting image:'),recipe,ui.Label(' for address:'+assetId));
@@ -103,7 +103,7 @@ print(ui.Label('Exporting image:'),recipe,ui.Label(' for address:'+assetId));
 // export
  Export.image.toAsset({
 	image: recipe,
-  description: 'fireFreq-'+ description,
+  description: description,
   assetId: assetId,
   region: region,
   pyramidingPolicy:'mode',
