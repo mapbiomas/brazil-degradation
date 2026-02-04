@@ -5,10 +5,10 @@
 
 // --- --- --- DATASETS
 // read coverage by mapbiomas collection 9
-var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1');
+var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2');
 // --- --- FIRE AGE
 // read age fire by mapbiomas fogo collection 3.1
-var age = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection3_1/mapbiomas_fire_collection31_time_after_fire_v1');
+var age = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection4_1/mapbiomas_fire_collection41_time_after_fire_v1');
 
 // get geometry for export params
 var region = coverage.geometry();
@@ -94,15 +94,15 @@ var properties = {
 };
 // set export image
 var recipe = fire_age_native_coverege.set(properties);
-var description = 'age_col9_v'+properties.version;
-var assetId = 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/fire/' + description;
+var description = 'degradation-fireAge-col10_v'+properties.version;
+var assetId = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/' + description;
 
 print(ui.Label('Exporting image:'),recipe,ui.Label(' for address:'+assetId));
 
 // export
  Export.image.toAsset({
 	image: recipe,
-  description:'fire-'+description,
+  description: description,
   assetId: assetId,
   region: region,
   pyramidingPolicy:'mode',
