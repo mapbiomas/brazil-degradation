@@ -8,7 +8,7 @@
 var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2');
 // --- --- FIRE recurrence
 // read recurrence fire by mapbiomas fogo collection 4
-var recurrence = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection4/mapbiomas_fire_collection4_fire_frequency_v1');
+var recurrence = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection4_1/mapbiomas_fire_collection41_fire_frequency_v1');
 
 // get geometry for export params
 var region = coverage.geometry();
@@ -17,8 +17,8 @@ var region = coverage.geometry();
 // formated image for recurrence information
 var fire_recurrence = recurrence
   .int16()
-  .slice(0,40);
-  // .aside(print);
+  .slice(0,40)
+  .aside(print);
 
 // --- --- NATIVE COVERAGE
 // set classes to be computed native coverage
