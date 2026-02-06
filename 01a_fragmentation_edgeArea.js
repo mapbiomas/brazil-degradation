@@ -2,8 +2,11 @@
 // any issue, bug or report write to dhemerson.costa@ipam.org.br and/or mrosa@arcplan.com.br
 
 // set version
-var collectionId = 10
+var collectionId = 10;
 var version = 1;
+
+// set filename
+var fileName = 'degradation_edge_area_col' + collectionId + '_v' + version;
 
 // -- * definitions
 // set classes in which edge area will be applied 
@@ -48,6 +51,9 @@ var biomes_dict = {
   'pampa':          6,
   'pantanal':       3
 };
+
+// build recipe
+var recipe = ee.Image([]);
 
 // for each year
 years_list.forEach(function(year_j) {
@@ -110,16 +116,22 @@ years_list.forEach(function(year_j) {
     
   Map.addLayer(edge_degrad_year.round().int16(), {palette:['red', 'yellow', 'green'], min:1, max:7000}, String(year_j));
   
-  // Edge area
-  Export.image.toAsset({
-  	image: edge_degrad_year.round().int16(),
-    description: 'EDGE-AREA' + '-' + year_j + '-' + version,
-    assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/edge-area/' +  'EDGE-AREA' + '-' + year_j + '-' + version,
-    region: biomes.geometry(),
-    scale: 30,
-    maxPixels: 1e13,
-    priority: 999
-  });
+  // bind
+  recipe = recipe.addBands(edge_degrad_year);
+  
+});
 
+// Standardize image
+recipe = recipe.round().int16();
+print('Output Image:', recipe);
 
+// Export edge area
+Export.image.toAsset({
+	image: recipe.round().int16(),
+  description: fileName,
+  assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/' + fileName,
+  region: biomes.geometry(),
+  scale: 30,
+  maxPixels: 1e13,
+  priority: 999
 });
