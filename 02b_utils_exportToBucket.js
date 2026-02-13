@@ -2,11 +2,11 @@
 // dhemerson.costa@ipam.org.br
 
 // input multiband image address
-var address = 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/native_mask/nativeMask_col10_v1';
+var address = 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/native_mask/nativeMask_col101_v2';
 
 // output bucket 
 var bucket_name = 'shared-development-storage';
-var bucket_address = 'AUXILIARES/DEGRADACAO/COL_10/temp/';
+var bucket_address = 'AUXILIARES/DEGRADACAO/COL_101/temp/';
 
 // function to export image 
 function exporting (image,name){
