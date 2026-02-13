@@ -2,7 +2,7 @@
 // any issue, bug or report write to dhemerson.costa@ipam.org.br and/or mrosa@arcplan.com.br
 
 // set version
-var version = 1;
+var version = 2;
 
 // -- * definitions
 // 3 (forest), 4 (savanna), 5 (mangrove), 6 (flooded forest), 11 (wetland), 12 (grassland)
@@ -54,7 +54,7 @@ var recipe = ee.Image([]);
 years_list.forEach(function(year_j) {
 
   // read collection 
-  var collection = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2')
+  var collection = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1')
     .select('classification_' + year_j);
     
     var recipe_year = ee.Image(0);
@@ -92,7 +92,7 @@ Map.addLayer(recipe.select('classification_2024').randomVisualizer(), {}, '2024'
 Export.image.toAsset({
 	image: recipe,
   description: 'nativeMask_' + 'col10_v' + version,
-  assetId: 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/native_mask/' + 'nativeMask_' + 'col10_v' + version,
+  assetId: 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/native_mask/' + 'nativeMask_' + 'col101_v' + version,
   region: biomes.geometry(),
   scale: 30,
   maxPixels: 1e13,
