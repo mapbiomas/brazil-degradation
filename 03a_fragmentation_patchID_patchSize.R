@@ -67,7 +67,7 @@ mclapply(years, function(yr) {
     area_round_digit = 2,
     area_unit = 'ha',
     map_fragment_id = TRUE,
-    map_fragment_ncell = FALSE,
+    map_fragment_ncell = TRUE,
     table_fragment_area = FALSE
   )
   log_msg("Metrics computed.")
