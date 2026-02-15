@@ -30,6 +30,13 @@ rgrass::initGRASS(gisBase = path_grass,
                   override = TRUE)
 
 # -------------------------------
+# Helper function to write timestamped messages
+# -------------------------------
+log_msg <- function(msg) {
+  cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "-", msg, "\n")
+}
+
+# -------------------------------
 # Parallel processing per year
 # -------------------------------
 ncores <- detectCores() - 1
@@ -40,20 +47,20 @@ mclapply(years, function(yr) {
   
   # Start log
   sink(log_file, append = TRUE)
-  cat("===== Processing year:", yr, "=====\n")
+  log_msg(paste("===== Processing year:", yr, "====="))
   
   # Step 1: Import raster
-  cat("Importing raster...\n")
+  log_msg("Importing raster...")
   raster_file <- paste0("./tif/", prefix, yr, ".tif")
   rgrass::execGRASS(
     cmd = 'r.in.gdal',
     input = raster_file,
     output = paste0(prefix, yr)
   )
-  cat("Raster imported.\n")
+  log_msg("Raster imported.")
   
   # Step 2: Compute metric
-  cat("Computing landscape metrics...\n")
+  log_msg("Computing landscape metrics...")
   lsmetrics::lsm_area_fragment(
     input = paste0(prefix, yr),
     zero_as_null = FALSE,
@@ -63,27 +70,27 @@ mclapply(years, function(yr) {
     map_fragment_ncell = FALSE,
     table_fragment_area = FALSE
   )
-  cat("Metrics computed.\n")
+  log_msg("Metrics computed.")
   
   # Step 3: Export fragment ID
-  cat("Exporting fragment ID...\n")
+  log_msg("Exporting fragment ID...")
   rgrass::execGRASS("r.out.gdal",
                     flags = "overwrite",
                     input = paste0(prefix, yr, "_fragment_id"),
                     output = paste0(results_dir, "/fragment_id_", yr, ".tif"),
                     createopt = "COMPRESS=DEFLATE,TFW=YES,BIGTIFF=YES")
-  cat("Fragment ID exported.\n")
+  log_msg("Fragment ID exported.")
   
   # Step 4: Export fragment area
-  cat("Exporting fragment area...\n")
+  log_msg("Exporting fragment area...")
   rgrass::execGRASS("r.out.gdal",
                     flags = "overwrite",
                     input = paste0(prefix, yr, "_fragment_area"),
                     output = paste0(results_dir, "/fragment_area_", yr, ".tif"),
                     createopt = "COMPRESS=DEFLATE,TFW=YES,BIGTIFF=YES")
-  cat("Fragment area exported.\n")
+  log_msg("Fragment area exported.")
   
-  cat("===== Finished year:", yr, "=====\n\n")
+  log_msg(paste("===== Finished year:", yr, "====="))
   
   # End log
   sink()
