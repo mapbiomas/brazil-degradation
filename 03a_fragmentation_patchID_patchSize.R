@@ -1,31 +1,27 @@
-## compute landscape metrics for mapbiomas degradation working group 
-## mauricio vancine // dhemerson conciani 
-# prepare r ---------------------------------------------------------------
-
-# install packages
-#install.packages(c("remotes", "tidyverse", "terra"))
-#remotes::install_github("mauriciovancine/lsmetrics", force = TRUE)
-
-# packages
 library(tidyverse)
 library(terra)
 library(lsmetrics)
 library(parallel)
+library(rgrass)
 
-# list mapbiomas files
-files <- list.files(path = "./tif", pattern = ".tif", full.names = TRUE)
+# -------------------------------
+# Parameters
+# -------------------------------
+files <- list.files(path = "./tif", pattern = ".tif$", full.names = TRUE)
 years <- seq(1985, 2024)
-prefix <- 'nativeMask_classification_'
+prefix <- 'nativeMask-classification_'
 
-## prepare grassdb ---------------------------------------------------------
-# find grass
-path_grass <- system("grass --config path", inter = TRUE) # windows users need to find the grass gis path installation, e.g. "C:/Program Files/GRASS GIS 8.3"
+results_dir <- "./results"
+logs_dir    <- "./logs"
 
-# import raster (only to initialize grassdb)
+dir.create(results_dir, showWarnings = FALSE)
+dir.create(logs_dir, showWarnings = FALSE)  # Create logs folder
+
+# GRASS path
+path_grass <- system("grass --config path", intern = TRUE)
+
+# Initialize GRASS DB (once)
 r <- terra::rast(files[1])
-r
-
-# create grassdb
 rgrass::initGRASS(gisBase = path_grass,
                   SG = r,
                   gisDbase = "grassdb",
@@ -33,62 +29,65 @@ rgrass::initGRASS(gisBase = path_grass,
                   mapset = "PERMANENT",
                   override = TRUE)
 
-## import mapbiomas files to grassdb
-mclapply(
-  files,
-  function(x) rgrass::execGRASS(
+# -------------------------------
+# Parallel processing per year
+# -------------------------------
+ncores <- detectCores() - 1
+
+mclapply(years, function(yr) {
+  
+  log_file <- file.path(logs_dir, paste0("fragment_id_", yr, ".log"))
+  
+  # Start log
+  sink(log_file, append = TRUE)
+  cat("===== Processing year:", yr, "=====\n")
+  
+  # Step 1: Import raster
+  cat("Importing raster...\n")
+  raster_file <- paste0("./tif/", prefix, yr, ".tif")
+  rgrass::execGRASS(
     cmd = 'r.in.gdal',
-    input = x,
-    output = sub('.tif$', '', basename(x))
-  ),
-  mc.cores = detectCores() - 1  # Use all but one core
-)
-
-# compute metric
-# id and area
-## parallel approach
-mclapply(
-  years,
-  function(x) lsmetrics::lsm_area_fragment(
-        input = paste0(prefix, x),
-        zero_as_null = FALSE,
-        area_round_digit = 2,
-        area_unit = 'ha',
-        map_fragment_id = TRUE,
-        map_fragment_ncell = TRUE,
-        table_fragment_area = TRUE
-        ),
-  mc.cores = 1
-)
-
-## linear approach 
-# for(i in years){
-#   
-#   print(i)
-#   lsmetrics::lsm_area_fragment(
-#     input = paste0(prefix, i),
-#     zero_as_null = FALSE,
-#     area_round_digit = 2,
-#     area_unit = 'ha',
-#     map_fragment_id = TRUE,
-#     map_fragment_ncell = TRUE,
-#     table_fragment_area = TRUE)
-# }
-
-
-## export as GeoTIFF
-for(i in years) {
-  print(i)
+    input = raster_file,
+    output = paste0(prefix, yr)
+  )
+  cat("Raster imported.\n")
   
-  rgrass::execGRASS("r.out.gdal", 
-                    flags = "overwrite",
-                    input = paste0(prefix, i, "_fragment_area"),
-                    output = paste0("./results/", "fragment_area_", i, ".tif"),
-                    createopt = "COMPRESS=DEFLATE,TFW=YES,BIGTIFF=YES")
+  # Step 2: Compute metric
+  cat("Computing landscape metrics...\n")
+  lsmetrics::lsm_area_fragment(
+    input = paste0(prefix, yr),
+    zero_as_null = FALSE,
+    area_round_digit = 2,
+    area_unit = 'ha',
+    map_fragment_id = TRUE,
+    map_fragment_ncell = FALSE,
+    table_fragment_area = FALSE
+  )
+  cat("Metrics computed.\n")
   
-  rgrass::execGRASS("r.out.gdal", 
+  # Step 3: Export fragment ID
+  cat("Exporting fragment ID...\n")
+  rgrass::execGRASS("r.out.gdal",
                     flags = "overwrite",
-                    input = paste0(prefix, i, "_fragment_id"),
-                    output = paste0("./results/", "fragment_id_", i, ".tif"),
+                    input = paste0(prefix, yr, "_fragment_id"),
+                    output = paste0(results_dir, "/fragment_id_", yr, ".tif"),
                     createopt = "COMPRESS=DEFLATE,TFW=YES,BIGTIFF=YES")
-}
+  cat("Fragment ID exported.\n")
+  
+  # Step 4: Export fragment area
+  cat("Exporting fragment area...\n")
+  rgrass::execGRASS("r.out.gdal",
+                    flags = "overwrite",
+                    input = paste0(prefix, yr, "_fragment_area"),
+                    output = paste0(results_dir, "/fragment_area_", yr, ".tif"),
+                    createopt = "COMPRESS=DEFLATE,TFW=YES,BIGTIFF=YES")
+  cat("Fragment area exported.\n")
+  
+  cat("===== Finished year:", yr, "=====\n\n")
+  
+  # End log
+  sink()
+  
+  return(paste("Completed", yr))
+  
+}, mc.cores = ncores)
