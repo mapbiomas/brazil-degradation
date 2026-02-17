@@ -1,67 +1,189 @@
-## compute landscape metrics for mapbiomas degradation working group 
-## mauricio vancine // dhemerson conciani 
-# prepare r ---------------------------------------------------------------
+#!/usr/bin/env Rscript
+# parallel -j 12 Rscript 03a_fragmentation_morphology.R ::: $(seq 1985 2024)
 
-# install packages
-#install.packages(c("remotes", "tidyverse", "terra"))
-#remotes::install_github("mauriciovancine/lsmetrics", force = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) == 0) stop("Provide year")
 
-# packages
-library(tidyverse)
-library(terra)
-library(lsmetrics)
-library(parallel)
+year <- args[1]
 
-# list mapbiomas files
-files <- list.files(path = "./tif", pattern = ".tif", full.names = TRUE)
-years <- seq(1985, 2024)
-prefix <- 'nativeMask_classification_'
+suppressPackageStartupMessages({
+  library(rgrass)
+  library(lsmetrics)
+})
 
-## prepare grassdb ---------------------------------------------------------
-# find grass
-path_grass <- system("grass --config path", inter = TRUE) # windows users need to find the grass gis path installation, e.g. "C:/Program Files/GRASS GIS 8.3"
+# --------------------------------------------------
+# LOGGING (ONE FILE PER YEAR)
+# --------------------------------------------------
 
-# import raster (only to initialize grassdb)
-r <- terra::rast(files[1])
-r
+log_dir <- "logs"
+dir.create(log_dir, recursive = TRUE, showWarnings = FALSE)
 
-# create grassdb
-rgrass::initGRASS(gisBase = path_grass,
-                  SG = r,
-                  gisDbase = "grassdb",
-                  location = "newLocation",
-                  mapset = "PERMANENT",
-                  override = TRUE)
+log_file <- file.path(log_dir, paste0("morphology_", year, ".log"))
 
-## import mapbiomas files to grassdb
-mclapply(
-  files,
-  function(x) rgrass::execGRASS(
-    cmd = 'r.in.gdal',
-    input = x,
-    output = sub('.tif$', '', basename(x))
-  ),
-  mc.cores = detectCores() - 1  # Use all but one core
-)
+log_message <- function(msg) {
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  line <- paste0("[", timestamp, "] ", msg, "\n")
+  cat(line)
+  cat(line, file = log_file, append = TRUE)
+}
 
-## compute morphology
-for (i in years) {  
-  print(i)
-  lsmetrics::lsm_morphology(
-    input= paste0(prefix, i),
-    zero_as_null = FALSE,
-    memory = 1e13
+log_step <- function(step, expr) {
+  log_message(paste("----", step, "START ----"))
+  result <- tryCatch(
+    expr,
+    error = function(e) {
+      log_message(paste("ERROR in", step, ":", e$message))
+      stop(e)
+    }
   )
+  log_message(paste("----", step, "END ----"))
+  result
 }
 
-## export as GeoTIFF
-for(i in years) {
-  print(i)
+log_message(paste("===== MORPHOLOGY year", year, "====="))
+
+# --------------------------------------------------
+# SETTINGS
+# --------------------------------------------------
+
+grass_exec <- Sys.which("grass")
+if (grass_exec == "") stop("GRASS executable not found")
+
+grass_path <- system("grass --config path", intern = TRUE)
+
+gisDbase <- "./grassdata"
+dir.create(gisDbase, recursive = TRUE, showWarnings = FALSE)
+
+location_name <- paste0("COL101_", year)
+location_path <- file.path(gisDbase, location_name)
+mapset_name <- "PERMANENT"
+
+input_raster <- paste0("./tif/nativeMask_classification_", year, ".tif")
+grass_raster_name <- paste0("nativeMask_", year)
+
+results_dir <- "./results"
+dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+
+output_file <- file.path(results_dir, paste0("morphology_", year, ".tif"))
+
+if (file.exists(output_file)) {
+  log_message("Output exists. Skipping.")
+  quit(save = "no")
+}
+
+# --------------------------------------------------
+# CREATE LOCATION
+# --------------------------------------------------
+
+log_step("CREATE_LOCATION", {
   
-  rgrass::execGRASS("r.out.gdal", 
-                    flags = "overwrite",
-                    input = paste0(prefix, i, "_morphology"),
-                    output = paste0("./results/", "morphology_", i, ".tif"),
-                    createopt = "COMPRESS=DEFLATE,TFW=YES,BIGTIFF=YES")
-}
+  if (!dir.exists(location_path)) {
+    
+    cmd <- sprintf(
+      "%s -c %s %s -e",
+      shQuote(grass_exec),
+      shQuote(input_raster),
+      shQuote(location_path)
+    )
+    
+    status <- system(cmd)
+    if (status != 0) stop("Failed creating GRASS location")
+  }
+})
 
+# --------------------------------------------------
+# INIT GRASS
+# --------------------------------------------------
+
+log_step("INIT_GRASS", {
+  
+  initGRASS(
+    gisBase  = grass_path,
+    home     = tempdir(),
+    gisDbase = gisDbase,
+    location = location_name,
+    mapset   = mapset_name,
+    override = TRUE
+  )
+})
+
+# --------------------------------------------------
+# IMPORT RASTER
+# --------------------------------------------------
+
+log_step("IMPORT_RASTER", {
+  
+  execGRASS(
+    "r.in.gdal",
+    flags = c("overwrite", "o"),
+    parameters = list(
+      input  = input_raster,
+      output = grass_raster_name
+    )
+  )
+})
+
+# --------------------------------------------------
+# FORCE REGION FROM RASTER
+# --------------------------------------------------
+
+log_step("SET_REGION", {
+  
+  execGRASS(
+    "g.region",
+    parameters = list(
+      raster = grass_raster_name,
+      align  = grass_raster_name
+    )
+  )
+})
+
+# --------------------------------------------------
+# RUN LSM_MORPHOLOGY
+# --------------------------------------------------
+
+log_step("LSM_MORPHOLOGY", {
+  
+  lsmetrics::lsm_morphology(
+    input = grass_raster_name,
+    zero_as_null = FALSE,
+    memory = 1e13   # your requested value
+  )
+})
+
+final_raster <- paste0(grass_raster_name, "_morphological_segmentation")
+
+# --------------------------------------------------
+# EXPORT RESULT
+# --------------------------------------------------
+
+log_step("EXPORT", {
+  
+  execGRASS(
+    "r.out.gdal",
+    flags = c("overwrite", "c"),
+    parameters = list(
+      input     = final_raster,
+      output    = output_file,
+      createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
+    )
+  )
+})
+
+# --------------------------------------------------
+# CLEAN FINAL RASTER
+# --------------------------------------------------
+
+log_step("CLEAN", {
+  
+  execGRASS(
+    "g.remove",
+    flags = c("f", "quiet"),
+    parameters = list(
+      type = "raster",
+      name = final_raster
+    )
+  )
+})
+
+log_message(paste("===== FINISHED year", year, "SUCCESS ====="))
