@@ -5,16 +5,45 @@ if (length(args) == 0) stop("Provide year")
 
 year <- args[1]
 
-cat("===== Processing year:", year, "=====\n")
-
 suppressPackageStartupMessages(library(rgrass))
+
+# --------------------------------------------------
+# LOG SETUP (ONE FILE PER YEAR)
+# --------------------------------------------------
+
+log_dir <- "logs"
+dir.create(log_dir, recursive = TRUE, showWarnings = FALSE)
+
+log_file <- file.path(log_dir, paste0(year, ".log"))
+
+log_message <- function(msg) {
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  line <- paste0("[", timestamp, "] ", msg, "\n")
+  cat(line)
+  cat(line, file = log_file, append = TRUE)
+}
+
+log_step <- function(step, expr) {
+  log_message(paste("----", step, "START ----"))
+  result <- tryCatch(
+    expr,
+    error = function(e) {
+      log_message(paste("ERROR in", step, ":", e$message))
+      stop(e)
+    }
+  )
+  log_message(paste("----", step, "END ----"))
+  return(result)
+}
+
+log_message(paste("===== Processing year", year, "====="))
 
 # --------------------------------------------------
 # SETTINGS
 # --------------------------------------------------
 
 grass_exec <- Sys.which("grass")
-if (grass_exec == "") stop("GRASS executable not found in PATH")
+if (grass_exec == "") stop("GRASS executable not found")
 
 grass_path <- system("grass --config path", intern = TRUE)
 
@@ -25,11 +54,7 @@ location_name <- paste0("COL101_", year)
 location_path <- file.path(gisDbase, location_name)
 mapset_name   <- "PERMANENT"
 
-input_raster <- paste0(
-  "./tif/nativeMask_classification_",
-  year,
-  ".tif"
-)
+input_raster <- paste0("./tif/nativeMask_classification_", year, ".tif")
 
 results_dir <- "./results"
 dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
@@ -37,51 +62,52 @@ dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
 output_fragment_id   <- file.path(results_dir, paste0("fragment_id_", year, ".tif"))
 output_fragment_area <- file.path(results_dir, paste0("fragment_area_", year, ".tif"))
 
-# Skip if already processed
 if (file.exists(output_fragment_id) && file.exists(output_fragment_area)) {
-  cat("Outputs already exist. Skipping year", year, "\n")
+  log_message("Outputs already exist. Skipping year.")
   quit(save = "no")
 }
 
 # --------------------------------------------------
-# CREATE LOCATION DIRECTLY FROM RASTER
+# 01 CREATE LOCATION
 # --------------------------------------------------
 
-if (!dir.exists(location_path)) {
+log_step("CREATE_LOCATION", {
   
-  cat("Creating GRASS location from raster...\n")
+  if (!dir.exists(location_path)) {
+    
+    cmd <- sprintf(
+      "%s -c %s %s -e",
+      shQuote(grass_exec),
+      shQuote(input_raster),
+      shQuote(location_path)
+    )
+    
+    status <- system(cmd)
+    
+    if (status != 0) stop("Failed creating GRASS location")
+  }
   
-  cmd <- sprintf(
-    "%s -c %s %s -e",
-    shQuote(grass_exec),
-    shQuote(input_raster),
-    shQuote(location_path)
+})
+
+# --------------------------------------------------
+# 02 INIT GRASS
+# --------------------------------------------------
+
+log_step("INIT_GRASS", {
+  
+  initGRASS(
+    gisBase  = grass_path,
+    home     = tempdir(),
+    gisDbase = gisDbase,
+    location = location_name,
+    mapset   = mapset_name,
+    override = TRUE
   )
   
-  status <- system(cmd)
-  
-  if (status != 0) {
-    stop("Failed to create GRASS location from raster")
-  }
-}
+})
 
 # --------------------------------------------------
-# INIT GRASS
-# --------------------------------------------------
-
-initGRASS(
-  gisBase  = grass_path,
-  home     = tempdir(),
-  gisDbase = gisDbase,
-  location = location_name,
-  mapset   = mapset_name,
-  override = TRUE
-)
-
-cat("GRASS initialized\n")
-
-# --------------------------------------------------
-# IMPORT RASTER (override projection allowed)
+# 03 IMPORT RASTER
 # --------------------------------------------------
 
 base_name   <- paste0("nativeMask_", year)
@@ -90,175 +116,197 @@ fragment_id <- paste0(base_name, "_fragment_id")
 area_cell   <- paste0(fragment, "_area_cell")
 area_map    <- paste0(fragment, "_area")
 
-cat("Importing raster...\n")
-
-execGRASS(
-  "r.in.gdal",
-  flags = c("overwrite", "o"),
-  parameters = list(
-    input  = input_raster,
-    output = base_name
-  )
-)
-
-# Verify raster imported
-rlist <- execGRASS(
-  "g.list",
-  parameters = list(type = "raster"),
-  intern = TRUE
-)
-
-if (!(base_name %in% rlist)) {
-  stop("Raster failed to import.")
-}
-
-cat("Raster imported successfully.\n")
-
-# --------------------------------------------------
-# FORCE REGION FROM RASTER
-# --------------------------------------------------
-
-cat("Setting computational region...\n")
-
-execGRASS(
-  "g.region",
-  parameters = list(
-    raster = base_name,
-    align  = base_name
-  )
-)
-
-# Print region for debug
-execGRASS("g.region", flags = "p")
-
-# --------------------------------------------------
-# CREATE BINARY FRAGMENT MAP
-# --------------------------------------------------
-
-execGRASS(
-  "r.mapcalc",
-  flags = c("overwrite"),
-  parameters = list(
-    expression = sprintf(
-      "%s = if(%s == 1, 1, null())",
-      fragment, base_name
+log_step("IMPORT_RASTER", {
+  
+  execGRASS(
+    "r.in.gdal",
+    flags = c("overwrite", "o"),
+    parameters = list(
+      input  = input_raster,
+      output = base_name
     )
   )
-)
-
-# --------------------------------------------------
-# CLUMP PATCHES
-# --------------------------------------------------
-
-execGRASS(
-  "r.clump",
-  flags = c("overwrite"),
-  parameters = list(
-    input  = fragment,
-    output = fragment_id
+  
+  rlist <- execGRASS(
+    "g.list",
+    parameters = list(type = "raster"),
+    intern = TRUE
   )
-)
+  
+  if (!(base_name %in% rlist))
+    stop("Raster import failed")
+  
+})
 
 # --------------------------------------------------
-# APPLY MASK
+# 04 SET REGION
 # --------------------------------------------------
 
-execGRASS(
-  "r.mask",
-  flags = c("overwrite"),
-  parameters = list(raster = fragment)
-)
-
-# --------------------------------------------------
-# CELL AREA (ha)
-# --------------------------------------------------
-
-execGRASS(
-  "r.mapcalc",
-  flags = c("overwrite"),
-  parameters = list(
-    expression = sprintf(
-      "%s = area()/10000.0",
-      area_cell
+log_step("SET_REGION", {
+  
+  execGRASS(
+    "g.region",
+    parameters = list(
+      raster = base_name,
+      align  = base_name
     )
   )
-)
+  
+})
 
 # --------------------------------------------------
-# ZONAL SUM (patch size)
+# 05 CREATE BINARY
 # --------------------------------------------------
 
-execGRASS(
-  "r.stats.zonal",
-  flags = c("overwrite"),
-  parameters = list(
-    base   = fragment_id,
-    cover  = area_cell,
-    method = "sum",
-    output = area_map
-  )
-)
-
-# Round to integer hectares
-execGRASS(
-  "r.mapcalc",
-  flags = c("overwrite"),
-  parameters = list(
-    expression = sprintf(
-      "%s = int(%s)",
-      area_map, area_map
+log_step("CREATE_BINARY", {
+  
+  execGRASS(
+    "r.mapcalc",
+    flags = "overwrite",
+    parameters = list(
+      expression = sprintf(
+        "%s = if(%s == 1, 1, null())",
+        fragment, base_name
+      )
     )
   )
-)
-
-# Remove mask
-execGRASS("r.mask", flags = "r")
+  
+})
 
 # --------------------------------------------------
-# EXPORT RESULTS
+# 06 CLUMP
 # --------------------------------------------------
 
-execGRASS(
-  "r.out.gdal",
-  flags = c("overwrite", "c"),
-  parameters = list(
-    input     = fragment_id,
-    output    = output_fragment_id,
-    createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
-  )
-)
-
-execGRASS(
-  "r.out.gdal",
-  flags = c("overwrite", "c"),
-  parameters = list(
-    input     = area_map,
-    output    = output_fragment_area,
-    createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
-  )
-)
-
-# --------------------------------------------------
-# CLEAN TEMP RASTERS
-# --------------------------------------------------
-
-execGRASS(
-  "g.remove",
-  flags = c("f"),
-  parameters = list(
-    type = "raster",
-    name = paste(
-      base_name,
-      fragment,
-      fragment_id,
-      area_cell,
-      area_map,
-      sep = ","
+log_step("CLUMP", {
+  
+  execGRASS(
+    "r.clump",
+    flags = "overwrite",
+    parameters = list(
+      input  = fragment,
+      output = fragment_id
     )
   )
-)
+  
+})
 
-cat("===== Finished year:", year, "=====\n")
+# --------------------------------------------------
+# 07 MASK
+# --------------------------------------------------
 
-# to run
+log_step("MASK", {
+  
+  execGRASS(
+    "r.mask",
+    flags = "overwrite",
+    parameters = list(raster = fragment)
+  )
+  
+})
+
+# --------------------------------------------------
+# 08 CELL AREA
+# --------------------------------------------------
+
+log_step("CELL_AREA", {
+  
+  execGRASS(
+    "r.mapcalc",
+    flags = "overwrite",
+    parameters = list(
+      expression = sprintf("%s = area()/10000.0", area_cell)
+    )
+  )
+  
+})
+
+# --------------------------------------------------
+# 09 ZONAL SUM
+# --------------------------------------------------
+
+log_step("ZONAL_SUM", {
+  
+  execGRASS(
+    "r.stats.zonal",
+    flags = "overwrite",
+    parameters = list(
+      base   = fragment_id,
+      cover  = area_cell,
+      method = "sum",
+      output = area_map
+    )
+  )
+  
+  execGRASS(
+    "r.mapcalc",
+    flags = "overwrite",
+    parameters = list(
+      expression = sprintf("%s = int(%s)", area_map, area_map)
+    )
+  )
+  
+})
+
+# --------------------------------------------------
+# 10 REMOVE MASK
+# --------------------------------------------------
+
+log_step("REMOVE_MASK", {
+  execGRASS("r.mask", flags = "r")
+})
+
+# --------------------------------------------------
+# 11 EXPORT
+# --------------------------------------------------
+
+log_step("EXPORT", {
+  
+  execGRASS(
+    "r.out.gdal",
+    flags = c("overwrite", "c"),
+    parameters = list(
+      input     = fragment_id,
+      output    = output_fragment_id,
+      createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
+    )
+  )
+  
+  execGRASS(
+    "r.out.gdal",
+    flags = c("overwrite", "c"),
+    parameters = list(
+      input     = area_map,
+      output    = output_fragment_area,
+      createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
+    )
+  )
+  
+})
+
+# --------------------------------------------------
+# 12 CLEAN
+# --------------------------------------------------
+
+log_step("CLEANUP", {
+  
+  execGRASS(
+    "g.remove",
+    flags = "f",
+    parameters = list(
+      type = "raster",
+      name = paste(
+        base_name,
+        fragment,
+        fragment_id,
+        area_cell,
+        area_map,
+        sep = ","
+      )
+    )
+  )
+  
+})
+
+log_message(paste("===== Finished year", year, "SUCCESS ====="))
+
 # parallel -j 12 Rscript 03a_year.R ::: $(seq 1985 2024)
