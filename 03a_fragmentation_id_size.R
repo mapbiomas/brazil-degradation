@@ -26,7 +26,7 @@ location_path <- file.path(gisDbase, location_name)
 mapset_name   <- "PERMANENT"
 
 input_raster <- paste0(
-  "/mnt/Files-Geo/Arquivos/DEGRADACAO/LSMETRICS/COL101/tif/nativeMask_classification_",
+  "./tif/nativeMask_classification_",
   year,
   ".tif"
 )
@@ -224,7 +224,6 @@ execGRASS(
   parameters = list(
     input     = fragment_id,
     output    = output_fragment_id,
-    type      = "Int32",
     createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
   )
 )
@@ -235,7 +234,6 @@ execGRASS(
   parameters = list(
     input     = area_map,
     output    = output_fragment_area,
-    type      = "Int32",
     createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
   )
 )
@@ -261,3 +259,6 @@ execGRASS(
 )
 
 cat("===== Finished year:", year, "=====\n")
+
+# to run
+# parallel -j 12 Rscript 03a_year.R ::: $(seq 1985 2024)
