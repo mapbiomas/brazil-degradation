@@ -16,8 +16,8 @@ library(rgrass)
 grass_path <- system("grass --config path", intern = TRUE)
 gisDbase   <- "./grassdata"
 
-location_name <- "COL101"
-mapset_name   <- paste0("year_", year)
+location_name <- paste0("COL101_", year)
+mapset_name   <- "PERMANENT"
 
 input_raster <- paste0(
   "/mnt/Files-Geo/Arquivos/DEGRADACAO/LSMETRICS/COL101/tif/nativeMask_classification_",
@@ -25,8 +25,8 @@ input_raster <- paste0(
   ".tif"
 )
 
-output_fragment_id   <- paste0("/mnt/results/fragment_id_", year, ".tif")
-output_fragment_area <- paste0("/mnt/results/fragment_area_", year, ".tif")
+output_fragment_id   <- paste0("./results/fragment_id_", year, ".tif")
+output_fragment_area <- paste0("./results/fragment_area_", year, ".tif")
 
 # Skip if already processed
 if (file.exists(output_fragment_id) && file.exists(output_fragment_area)) {
