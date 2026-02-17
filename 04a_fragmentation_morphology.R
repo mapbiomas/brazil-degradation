@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Run with:
 # parallel -j 12 Rscript 03a_fragmentation_morphology.R ::: $(seq 1985 2024)
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -66,13 +67,17 @@ dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 
 output_file <- file.path(results_dir, paste0("morphology_", year, ".tif"))
 
-if (file.exists(output_file)) {
-  log_message("Output exists. Skipping.")
+# --------------------------------------------------
+# GLOBAL SKIP IF FINAL OUTPUT EXISTS
+# --------------------------------------------------
+
+if (file.exists(output_file) && file.info(output_file)$size > 1000) {
+  log_message("Final GeoTIFF already exists. Skipping entire year.")
   quit(save = "no")
 }
 
 # --------------------------------------------------
-# CREATE LOCATION
+# CREATE LOCATION (IF NEEDED)
 # --------------------------------------------------
 
 log_step("CREATE_LOCATION", {
@@ -108,23 +113,35 @@ log_step("INIT_GRASS", {
 })
 
 # --------------------------------------------------
-# IMPORT RASTER
+# IMPORT RASTER (IF NOT PRESENT)
 # --------------------------------------------------
 
-log_step("IMPORT_RASTER", {
+existing_rasters <- execGRASS(
+  "g.list",
+  parameters = list(type = "raster"),
+  intern = TRUE
+)
+
+if (!(grass_raster_name %in% existing_rasters)) {
   
-  execGRASS(
-    "r.in.gdal",
-    flags = c("overwrite", "o"),
-    parameters = list(
-      input  = input_raster,
-      output = grass_raster_name
+  log_step("IMPORT_RASTER", {
+    
+    execGRASS(
+      "r.in.gdal",
+      flags = c("overwrite", "o"),
+      parameters = list(
+        input  = input_raster,
+        output = grass_raster_name
+      )
     )
-  )
-})
+  })
+  
+} else {
+  log_message("Raster already exists in GRASS. Skipping import.")
+}
 
 # --------------------------------------------------
-# FORCE REGION FROM RASTER
+# SET REGION
 # --------------------------------------------------
 
 log_step("SET_REGION", {
@@ -139,39 +156,70 @@ log_step("SET_REGION", {
 })
 
 # --------------------------------------------------
-# RUN LSM_MORPHOLOGY
+# CHECK IF MORPHOLOGY EXISTS
 # --------------------------------------------------
-
-log_step("LSM_MORPHOLOGY", {
-  
-  lsmetrics::lsm_morphology(
-    input = grass_raster_name,
-    zero_as_null = FALSE,
-    memory = 1e13   # your requested value
-  )
-})
 
 final_raster <- paste0(grass_raster_name, "_morphological_segmentation")
 
+existing_rasters <- execGRASS(
+  "g.list",
+  parameters = list(type = "raster"),
+  intern = TRUE
+)
+
+morph_exists <- final_raster %in% existing_rasters
+
+if (morph_exists) {
+  log_message("Morphology raster already exists in GRASS. Skipping morphology.")
+}
+
 # --------------------------------------------------
-# EXPORT RESULT
+# RUN LSM_MORPHOLOGY (IF NEEDED)
 # --------------------------------------------------
 
-log_step("EXPORT", {
+if (!morph_exists) {
   
-  execGRASS(
-    "r.out.gdal",
-    flags = c("overwrite", "c"),
-    parameters = list(
-      input     = final_raster,
-      output    = output_file,
-      createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
+  log_step("LSM_MORPHOLOGY", {
+    
+    lsmetrics::lsm_landscape_morphology(
+      input = grass_raster_name,
+      zero_as_null = FALSE,
+      region_input = FALSE,
+      table_morphological_segmentation = FALSE,
+      nprocs = 1,
+      memory = 8000   # safe realistic value
     )
-  )
-})
+  })
+  
+} else {
+  log_message("LSM_MORPHOLOGY skipped.")
+}
 
 # --------------------------------------------------
-# CLEAN FINAL RASTER
+# EXPORT (IF NEEDED)
+# --------------------------------------------------
+
+if (!file.exists(output_file) || file.info(output_file)$size < 1000) {
+  
+  log_step("EXPORT", {
+    
+    execGRASS(
+      "r.out.gdal",
+      flags = c("overwrite", "c"),
+      parameters = list(
+        input     = final_raster,
+        output    = output_file,
+        createopt = "COMPRESS=DEFLATE,BIGTIFF=YES"
+      )
+    )
+  })
+  
+} else {
+  log_message("Export skipped (GeoTIFF already valid).")
+}
+
+# --------------------------------------------------
+# CLEAN FINAL RASTER (OPTIONAL)
 # --------------------------------------------------
 
 log_step("CLEAN", {
