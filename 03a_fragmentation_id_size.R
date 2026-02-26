@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# parallel -j 12 Rscript 03a_fragmentation_id_area.R ::: $(seq 1985 2024)
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) stop("Provide year")
@@ -308,5 +309,3 @@ log_step("CLEANUP", {
 })
 
 log_message(paste("===== Finished year", year, "SUCCESS ====="))
-
-# parallel -j 12 Rscript 03a_year.R ::: $(seq 1985 2024)
