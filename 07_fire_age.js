@@ -5,7 +5,7 @@
 
 // --- --- --- DATASETS
 // read coverage by mapbiomas collection 9
-var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2');
+var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1');
 // --- --- FIRE AGE
 // read age fire by mapbiomas fogo collection 3.1
 var age = ee.Image('projects/mapbiomas-public/assets/brazil/fire/collection4_1/mapbiomas_fire_collection41_time_after_fire_v1');
@@ -89,12 +89,12 @@ Map.addLayer(fire_age,visParams.age_2,'fire_age');
 
 // Set properties in metadata image
 var properties = {
-  'version':1,
+  'version':2,
   'product':'age'
 };
 // set export image
 var recipe = fire_age_native_coverege.set(properties);
-var description = 'degradation-fireAge-col10_v'+properties.version;
+var description = 'degradation-fireAge-col101_v'+properties.version;
 var assetId = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/' + description;
 
 print(ui.Label('Exporting image:'),recipe,ui.Label(' for address:'+assetId));
