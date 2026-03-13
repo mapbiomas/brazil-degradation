@@ -2,7 +2,7 @@
 // any issue, bug or report write to dhemerson.costa@ipam.org.br and/or mrosa@arcplan.com.br
 
 // set version
-var collectionId = 10;
+var collectionId = 101;
 var version = 2;
 
 // set filename
