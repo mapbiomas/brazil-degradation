@@ -1,4 +1,4 @@
-var v_out = '1'
+var v_out = '2'
 
 // Importa o módulo de paletas de cores do MapBiomas e define uma paleta de visualização
 var Palettes = require('users/mapbiomas/modules:Palettes.js');
@@ -28,7 +28,7 @@ for (var i_ano = 0; i_ano < anos.length; i_ano++) {
     // Carrega a máscara de floresta e de não floresta para o ano atual
 //    var forestMask_ano = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col9/forestMask85a23_100m_v1')
 //                           .select('forest_' + ano);
-    var naturalMask_ano = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/natural_Mask85a24_100m_v1')
+    var naturalMask_ano = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/natural_Mask85a24_100m_v2')
                               .select('natural_' + ano);
 
     // Calcula o número de pixels conectados para as áreas de floresta e não floresta (1024 pixels, conectados em 8 direções)
@@ -54,7 +54,7 @@ for (var i_ano = 0; i_ano < anos.length; i_ano++) {
 print('naturalMask85a24_100m_conn', naturalMask85a24_100m_conn);
 
 // Define o diretório de saída para a exportação das imagens
-var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/';
+var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/';
 
 
 // Exporta a máscara de não floresta com conectividade para o asset do usuário
