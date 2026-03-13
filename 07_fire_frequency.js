@@ -4,7 +4,7 @@
 
 
 // --- --- --- DATASETS
-// read coverage by mapbiomas collection 10
+// read coverage by mapbiomas collection 10.1
 var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1');
 // --- --- FIRE recurrence
 // read recurrence fire by mapbiomas fogo collection 4
@@ -95,7 +95,7 @@ var properties = {
 };
 // set export image
 var recipe = fire_recurrence_native_coverege.set(properties);
-var description = 'degradation-fireFrequency-col10_v'+ properties.version;
+var description = 'degradation-fireFrequency-col101_v'+ properties.version;
 var assetId = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/' + description;
 
 print(ui.Label('Exporting image:'),recipe,ui.Label(' for address:'+assetId));
