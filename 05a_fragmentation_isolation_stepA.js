@@ -1,5 +1,5 @@
 // Define uma variável para versão de saída
-var v_out = '1';
+var v_out = '2';
 
 // Importa o módulo de Paletas do MapBiomas e define uma paleta de visualização
 var Palettes = require('users/mapbiomas/modules:Palettes.js');
@@ -11,7 +11,7 @@ var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
 var pantanal = biomes.mask(biomes.eq(3));
 Map.addLayer(pantanal, {}, 'pantanal', false); // Adiciona a camada de biomas ao mapa
 
-var lulc = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2')
+var lulc = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1')
 Map.addLayer(lulc.select('classification_2024'), vis, 'lulc', false); // Adiciona a camada de biomas ao mapa
 var lulc_pant = lulc.mask(pantanal)
 Map.addLayer(lulc_pant.select('classification_2024'), vis, 'lulc_pant', false); // Adiciona a camada de biomas ao mapa
@@ -53,7 +53,7 @@ Map.addLayer(naturalMask85a24_100m.select('natural_2024'), vis, 'naturalMask85a2
 print('naturalMask85a24_100m', naturalMask85a24_100m);
 
 // Define o diretório de saída para exportação dos dados
-var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/';
+var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/';
 
 // Exporta a máscara de floresta para o asset do usuário
 //Export.image.toAsset({
