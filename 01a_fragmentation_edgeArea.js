@@ -3,7 +3,7 @@
 
 // set version
 var collectionId = 10;
-var version = 1;
+var version = 2;
 
 // set filename
 var fileName = 'degradation_edge_area_col' + collectionId + '_v' + version;
@@ -62,7 +62,7 @@ years_list.forEach(function(year_j) {
   var edge_degrad_year = ee.Image(0);
 
   // read collection 
-  var collection = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2')
+  var collection = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1')
     .select('classification_' + year_j);
     //.blend(dnit_roads);
 
