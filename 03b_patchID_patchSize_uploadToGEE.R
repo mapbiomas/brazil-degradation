@@ -1,66 +1,90 @@
+# ---- LIBRARIES ----
 library(rgee)
+library(progress)
 
+# ---- INITIALIZE EARTH ENGINE ----
 ee_Initialize(project = "mapbiomas-mosaics")
 
 # ---- CONFIG ----
-tif_dir        <- "./ssh_download/"
-pattern_name   <- "fragment_id"
+tif_dir <- "./ssh_download/"
+pattern_name <- "fragment_id"
 
-# Separate bucket from folder-like prefix
-bucket_name    <- "shared-development-storage"
-prefix         <- "AUXILIARES/DEGRADACAO/COL_101/fragment_id"
-
-# Needed only if bucket may need to be created
-gcp_project    <- "mapbiomas-mosaics"
-
-# Optional but recommended: choose a location explicitly
+# GCS
+bucket_name <- "shared-development-storage"
+prefix <- "AUXILIARES/DEGRADACAO/COL_101/fragment_id"
+gcp_project <- "mapbiomas-mosaics"
 bucket_location <- "US"
 
-collection_id  <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v2"
+# EE Collection
+collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v2"
 
-pyr_policy     <- "MODE"
-nodata_value   <- 0
-overwrite      <- FALSE
+# Upload parameters
+pyr_policy <- "MODE"
+nodata_value <- 0
+overwrite <- FALSE
+
 
 # ---- HELPERS ----
 
+# Ensure ImageCollection exists
 ensure_ic <- function(ic_id) {
+  
   ok <- TRUE
+  
   tryCatch(
-    { ee$data$getAsset(ic_id) },
-    error = function(e) { ok <<- FALSE }
+    ee$data$getAsset(ic_id),
+    error = function(e) ok <<- FALSE
   )
   
   if (!ok) {
+    
     message("Creating image collection: ", ic_id)
+    
     status <- system2(
       "earthengine",
       c("create", "collection", ic_id),
-      stdout = TRUE, stderr = TRUE
+      stdout = TRUE,
+      stderr = TRUE
     )
+    
     message(paste(status, collapse = "\n"))
+    
   } else {
+    
     message("Collection already exists: ", ic_id)
+    
   }
 }
 
+
+# Build asset id from filename
 asset_from_path <- function(ic_id, tif) {
+  
   nm <- tools::file_path_sans_ext(basename(tif))
   nm <- gsub("[^A-Za-z0-9_\\-]", "_", nm)
+  
   paste0(ic_id, "/", nm)
+  
 }
 
+
+# Check if EE asset exists
 asset_exists <- function(asset_id) {
+  
   exists <- TRUE
+  
   tryCatch(
-    { ee$data$getAsset(asset_id) },
-    error = function(e) { exists <<- FALSE }
+    ee$data$getAsset(asset_id),
+    error = function(e) exists <<- FALSE
   )
+  
   exists
 }
 
+
+# Check if bucket exists
 bucket_exists <- function(bucket_name) {
-  # gsutil ls -b gs://bucket
+  
   res <- suppressWarnings(
     system2(
       "gsutil",
@@ -71,67 +95,77 @@ bucket_exists <- function(bucket_name) {
   )
   
   status <- attr(res, "status")
-  is.null(status) || identical(status, 0L)
+  
+  is.null(status) || status == 0
+  
 }
 
+
+# Create bucket if missing
 ensure_bucket <- function(bucket_name, gcp_project, location = "US") {
+  
   if (bucket_exists(bucket_name)) {
+    
     message("Bucket already exists: gs://", bucket_name)
     return(invisible(TRUE))
+    
   }
   
-  message("Bucket does not exist. Creating: gs://", bucket_name)
+  message("Creating bucket: gs://", bucket_name)
   
-  # gsutil mb -p PROJECT -l LOCATION gs://bucket
   res <- system2(
     "gsutil",
-    c("mb", "-p", gcp_project, "-l", location, paste0("gs://", bucket_name)),
+    c(
+      "mb",
+      "-p", gcp_project,
+      "-l", location,
+      paste0("gs://", bucket_name)
+    ),
     stdout = TRUE,
     stderr = TRUE
   )
   
   message(paste(res, collapse = "\n"))
   
-  status <- attr(res, "status")
-  if (!is.null(status) && status != 0L) {
-    stop("Failed to create bucket gs://", bucket_name)
-  }
-  
-  invisible(TRUE)
 }
 
-build_gcs_path <- function(bucket_name, prefix = NULL, tif) {
-  prefix <- gsub("^/+", "", prefix %||% "")
-  prefix <- gsub("/+$", "", prefix)
+
+# Build GCS path
+build_gcs_path <- function(bucket_name, prefix, tif) {
   
-  if (nzchar(prefix)) {
-    paste0("gs://", bucket_name, "/", prefix, "/", basename(tif))
-  } else {
-    paste0("gs://", bucket_name, "/", basename(tif))
-  }
+  paste0(
+    "gs://",
+    bucket_name,
+    "/",
+    prefix,
+    "/",
+    basename(tif)
+  )
+  
 }
 
-`%||%` <- function(x, y) if (is.null(x)) y else x
 
+# Upload file to GCS and start EE ingestion
 upload_one <- function(
-    tif, asset_id, bucket_name, prefix = NULL,
-    pyr = "MODE", nodata = NULL, overwrite = FALSE
+    tif,
+    asset_id,
+    bucket_name,
+    prefix,
+    pyr = "MODE",
+    nodata = NULL,
+    overwrite = FALSE
 ) {
+  
   gcs_path <- build_gcs_path(bucket_name, prefix, tif)
   
-  message("Uploading to GCS: ", gcs_path)
-  cp_res <- system2(
+  message("\nUploading to GCS: ", gcs_path)
+  
+  system2(
     "gsutil",
-    c("cp", tif, gcs_path),
+    c("-m", "cp", tif, gcs_path),
     stdout = TRUE,
     stderr = TRUE
   )
-  message(paste(cp_res, collapse = "\n"))
-  
-  cp_status <- attr(cp_res, "status")
-  if (!is.null(cp_status) && cp_status != 0L) {
-    stop("Failed to copy to GCS: ", gcs_path)
-  }
   
   args <- c(
     "upload", "image",
@@ -140,35 +174,43 @@ upload_one <- function(
   )
   
   if (!is.null(nodata)) {
+    
     args <- c(args, paste0("--nodata_value=", nodata))
+    
   }
+  
   if (overwrite) {
+    
     args <- c(args, "--force")
+    
   }
   
   args <- c(args, gcs_path)
   
   message("-> Ingesting into EE: ", asset_id)
-  ee_res <- system2(
+  
+  system2(
     "earthengine",
     args,
     stdout = TRUE,
     stderr = TRUE
   )
-  message(paste(ee_res, collapse = "\n"))
   
-  ee_status <- attr(ee_res, "status")
-  if (!is.null(ee_status) && ee_status != 0L) {
-    stop("Failed EE ingestion for: ", asset_id)
-  }
-  
-  invisible(gcs_path)
 }
 
-# ---- RUN ----
-ensure_ic(collection_id)
-ensure_bucket(bucket_name, gcp_project, bucket_location)
 
+# ---- RUN PIPELINE ----
+
+ensure_ic(collection_id)
+
+ensure_bucket(
+  bucket_name,
+  gcp_project,
+  bucket_location
+)
+
+
+# Find files
 tifs <- list.files(
   tif_dir,
   pattern = pattern_name,
@@ -177,39 +219,67 @@ tifs <- list.files(
 )
 
 if (length(tifs) == 0) {
+  
   stop("No .tif files found in: ", tif_dir)
+  
 }
 
-results <- lapply(tifs, function(tif) {
+
+# ---- PROGRESS BAR ----
+
+pb <- progress_bar$new(
+  format = "Uploading [:bar] :percent | :current/:total | eta: :eta",
+  total = length(tifs),
+  clear = FALSE,
+  width = 60
+)
+
+
+# ---- PROCESS FILES ----
+
+results <- lapply(seq_along(tifs), function(i) {
+  
+  tif <- tifs[i]
+  
   asset_id <- asset_from_path(collection_id, tif)
   
   if (asset_exists(asset_id) && !overwrite) {
-    msg <- sprintf("SKIP (exists): %s", asset_id)
-    message(msg)
-    return(list(tif = tif, asset_id = asset_id, action = "skip_exists"))
+    
+    message("SKIP (exists): ", asset_id)
+    
+    pb$tick()
+    
+    return(list(
+      tif = tif,
+      asset_id = asset_id,
+      action = "skip_exists"
+    ))
+    
   }
   
-  if (asset_exists(asset_id) && overwrite) {
-    message("Overwriting existing asset: ", asset_id)
-  }
-  
-  gcs_path <- upload_one(
-    tif         = tif,
-    asset_id    = asset_id,
+  upload_one(
+    tif = tif,
+    asset_id = asset_id,
     bucket_name = bucket_name,
-    prefix      = prefix,
-    pyr         = pyr_policy,
-    nodata      = nodata_value,
-    overwrite   = overwrite
+    prefix = prefix,
+    pyr = pyr_policy,
+    nodata = nodata_value,
+    overwrite = overwrite
   )
+  
+  pb$tick()
   
   list(
     tif = tif,
-    gcs_path = gcs_path,
     asset_id = asset_id,
     action = "uploaded"
   )
+  
 })
 
+
+# ---- CHECK COLLECTION ----
+
 ic <- ee$ImageCollection(collection_id)
+
 print(ic$size()$getInfo())
