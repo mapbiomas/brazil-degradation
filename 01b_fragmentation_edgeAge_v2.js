@@ -2,9 +2,9 @@
 // dhemerson.costa@ipam.org.br
 
 // set output version 
-var version_in = 1;
-var version_out = 1;
-var collectionId = 10;
+var version_in = 2;
+var version_out = 2;
+var collectionId = 101;
 
 // set filename
 var fileName = 'degradation_edge_age_col' + collectionId + '_v' + version_out;
@@ -18,7 +18,7 @@ var years = [1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
 
   
 // read edges for the version i and binarize 
-var edge_i_bin = ee.Image('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/degradation_edge_area_col10_v1')
+var edge_i_bin = ee.Image('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/degradation_edge_area_col101_v2')
   .gte(1); // binarize
 
 // for each year
