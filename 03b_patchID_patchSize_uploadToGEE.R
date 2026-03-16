@@ -1,11 +1,13 @@
 # ---- CONFIG ----
 library(rgee)
-ee_Initialize()  # needed to check/create the collection and use results
+ee_Initialize(project='mapbiomas-mosaics')  # needed to check/create the collection and use results
 
 # Where your .tif files live
-tif_dir       <- "./results/"
+tif_dir       <- "./ssh_download/"
+# set pattern name
+pattern_name <- "fragment_id"
 # Target ImageCollection (create if missing)
-collection_id <- "users/<your_username>/my_collection"
+collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v2"
 # Upload options
 pyr_policy    <- "MODE"     # use MODE for categorical, MEAN for continuous
 nodata_value  <- 0
@@ -68,7 +70,7 @@ upload_one <- function(tif, asset_id, pyr = "MEAN", nodata = NULL, overwrite = F
 # ---- RUN ----
 ensure_ic(collection_id)
 
-tifs <- list.files(tif_dir, pattern = "\\.tif(f)?$", full.names = TRUE, ignore.case = TRUE)
+tifs <- list.files(tif_dir, pattern = pattern_name, full.names = TRUE, ignore.case = TRUE)
 if (length(tifs) == 0) stop("No .tif files found in: ", tif_dir)
 
 results <- lapply(tifs, function(tif) {
