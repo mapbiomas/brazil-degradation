@@ -16,7 +16,7 @@ pattern_name <- "morphology"
 bucket_name <- "shared-development-storage"
 prefix <- "AUXILIARES/DEGRADACAO/COL_101/morphology"
 
-collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/morpgology-v2"
+collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/morphology-v2"
 
 manifest_dir <- "./manifests"
 dir.create(manifest_dir, showWarnings = FALSE)
@@ -90,7 +90,7 @@ build_manifest <- function(tif, asset_id, gcs_uri){
       )
     ),
     pyramidingPolicy = pyr_policy,
-    missingData = list(value = nodata_value)
+    missingData = list(values = list(nodata_value))
   )
 }
 
@@ -190,7 +190,7 @@ for(i in seq_along(chunks)){
 
 cat("\nAll tasks submitted.\n")
 
-# =========================================
+  # =========================================
 # STEP 4 — CHECK COLLECTION
 # =========================================
 
