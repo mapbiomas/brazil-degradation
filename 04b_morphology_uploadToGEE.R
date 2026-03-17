@@ -1,265 +1,200 @@
+# =========================================
+# HIGH-EFFICIENCY EE INGESTION PIPELINE
+# =========================================
+
 # ---- LIBRARIES ----
 library(rgee)
-library(progress)
-library(parallel)
+library(jsonlite)
 
-# ---- INITIALIZE EARTH ENGINE ----
+# ---- INITIALIZE EE ----
 ee_Initialize(project = "mapbiomas-mosaics")
 
 # ---- CONFIG ----
 tif_dir <- "./ssh_download/"
 pattern_name <- "morphology"
 
-# GCS
 bucket_name <- "shared-development-storage"
 prefix <- "AUXILIARES/DEGRADACAO/COL_101/morphology"
-gcp_project <- "mapbiomas-mosaics"
-bucket_location <- "US"
 
-# EE collection
-collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/morphology-v2"
+collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/morpgology-v2"
 
-# Upload parameters
+manifest_dir <- "./manifests"
+dir.create(manifest_dir, showWarnings = FALSE)
+
 pyr_policy <- "MODE"
 nodata_value <- 0
 overwrite <- FALSE
 
-# Number of parallel workers
-workers <- max(1, parallel::detectCores() - 1)
+batch_size <- 50
 
-# ---- HELPERS ----
+# =========================================
+# HELPERS
+# =========================================
 
-ensure_ic <- function(ic_id){
-  
-  ok <- TRUE
-  
-  tryCatch(
-    ee$data$getAsset(ic_id),
-    error=function(e) ok <<- FALSE
-  )
-  
-  if(!ok){
-    
-    message("Creating ImageCollection: ",ic_id)
-    
-    system2(
-      "earthengine",
-      c("create","collection",ic_id),
-      stdout=TRUE,
-      stderr=TRUE
-    )
-    
-  } else {
-    
-    message("Collection exists: ",ic_id)
-    
-  }
-}
-
-asset_from_path <- function(ic_id,tif){
-  
+asset_from_path <- function(ic_id, tif){
   nm <- tools::file_path_sans_ext(basename(tif))
-  nm <- gsub("[^A-Za-z0-9_\\-]","_",nm)
-  
-  paste0(ic_id,"/",nm)
+  nm <- gsub("[^A-Za-z0-9_\\-]", "_", nm)
+  paste0(ic_id, "/", nm)
 }
 
 asset_exists <- function(asset_id){
-  
-  exists <- TRUE
-  
-  tryCatch(
-    ee$data$getAsset(asset_id),
-    error=function(e) exists <<- FALSE
-  )
-  
-  exists
+  tryCatch({
+    ee$data$getAsset(asset_id)
+    TRUE
+  }, error=function(e) FALSE)
 }
 
-bucket_exists <- function(bucket){
-  
+gcs_uri_from_tif <- function(tif){
+  paste0("gs://", bucket_name, "/", prefix, "/", basename(tif))
+}
+
+gcs_exists <- function(gcs_uri){
   res <- system2(
     "gsutil",
-    c("ls","-b",paste0("gs://",bucket)),
-    stdout=TRUE,
-    stderr=TRUE
+    c("ls", gcs_uri),
+    stdout = TRUE,
+    stderr = TRUE
   )
-  
-  status <- attr(res,"status")
-  
+  status <- attr(res, "status")
   is.null(status) || status == 0
 }
 
-ensure_bucket <- function(bucket,project,location="US"){
+upload_if_needed <- function(tif, gcs_uri){
   
-  if(bucket_exists(bucket)){
-    
-    message("Bucket exists: ",bucket)
-    return()
-    
-  }
-  
-  message("Creating bucket: ",bucket)
-  
-  system2(
-    "gsutil",
-    c("mb","-p",project,"-l",location,paste0("gs://",bucket)),
-    stdout=TRUE,
-    stderr=TRUE
-  )
-}
-
-build_gcs_path <- function(bucket,prefix,tif){
-  
-  paste0(
-    "gs://",
-    bucket,"/",
-    prefix,"/",
-    basename(tif)
-  )
-}
-
-gcs_file_exists <- function(gcs_path){
-  
-  res <- system2(
-    "gsutil",
-    c("ls",gcs_path),
-    stdout=TRUE,
-    stderr=TRUE
-  )
-  
-  status <- attr(res,"status")
-  
-  is.null(status) || status == 0
-}
-
-upload_to_gcs <- function(tif,gcs_path){
-  
-  if(gcs_file_exists(gcs_path)){
-    
-    message("GCS exists -> skip upload: ",gcs_path)
+  if(gcs_exists(gcs_uri)){
+    cat("✓ GCS exists -> skip:", gcs_uri, "\n")
     return("skip_gcs")
-    
   }
   
-  message("Uploading to GCS: ",gcs_path)
+  cat("↑ Uploading:", gcs_uri, "\n")
   
   system2(
     "gsutil",
-    c("-m","cp",tif,gcs_path),
-    stdout=TRUE,
-    stderr=TRUE
+    c("-m", "cp", tif, gcs_uri),
+    stdout = TRUE,
+    stderr = TRUE
   )
   
-  "uploaded_gcs"
+  return("uploaded")
 }
 
-start_ingestion <- function(gcs_path,asset_id){
-  
-  args <- c(
-    "upload","image",
-    paste0("--asset_id=",asset_id),
-    paste0("--pyramiding_policy=",pyr_policy),
-    paste0("--nodata_value=",nodata_value),
-    gcs_path
-  )
-  
-  system2(
-    "earthengine",
-    args,
-    stdout=TRUE,
-    stderr=TRUE
-  )
-  
-  "task_started"
-}
-
-process_file <- function(tif){
-  
-  asset_id <- asset_from_path(collection_id,tif)
-  
-  if(asset_exists(asset_id) && !overwrite){
-    
-    return(list(
-      tif=tif,
-      action="skip_asset"
-    ))
-  }
-  
-  gcs_path <- build_gcs_path(bucket_name,prefix,tif)
-  
-  upload_status <- upload_to_gcs(tif,gcs_path)
-  
-  ingest_status <- start_ingestion(gcs_path,asset_id)
+build_manifest <- function(tif, asset_id, gcs_uri){
   
   list(
-    tif=tif,
-    gcs=gcs_path,
-    asset=asset_id,
-    upload=upload_status,
-    ingest=ingest_status
+    name = asset_id,
+    tilesets = list(
+      list(
+        sources = list(
+          list(uris = list(gcs_uri))
+        )
+      )
+    ),
+    pyramidingPolicy = pyr_policy,
+    missingData = list(value = nodata_value)
   )
 }
 
-# ---- PREPARE ENVIRONMENT ----
-
-ensure_ic(collection_id)
-ensure_bucket(bucket_name,gcp_project,bucket_location)
-
-# ---- FIND FILES ----
+# =========================================
+# STEP 1 — LIST FILES
+# =========================================
 
 tifs <- list.files(
   tif_dir,
-  pattern=pattern_name,
-  full.names=TRUE
+  pattern = pattern_name,
+  full.names = TRUE
 )
 
-if(length(tifs)==0) stop("No tif files found")
+if(length(tifs) == 0) stop("No tif files found")
 
-# ---- PROGRESS BAR ----
+cat("Found", length(tifs), "files\n")
 
-pb <- progress_bar$new(
-  format="Processing [:bar] :percent | :current/:total | eta: :eta",
-  total=length(tifs),
-  width=60
-)
+# =========================================
+# STEP 2 — PROCESS FILES (SMART PIPELINE)
+# =========================================
 
-# ---- CLUSTER ----
+manifest_paths <- c()
 
-cl <- makeCluster(workers)
-
-clusterExport(
-  cl,
-  varlist=c(
-    "collection_id","overwrite",
-    "bucket_name","prefix",
-    "pyr_policy","nodata_value",
-    "asset_from_path","asset_exists",
-    "build_gcs_path","upload_to_gcs",
-    "start_ingestion","gcs_file_exists",
-    "process_file"
-  ),
-  envir=environment()
-)
-
-# ---- PARALLEL PROCESSING ----
-
-results <- list()
-
-for(i in seq_along(tifs)){
+for(tif in tifs){
   
-  res <- parLapply(cl, list(tifs[i]), process_file)[[1]]
+  cat("\n-----------------------------\n")
+  cat("Processing:", tif, "\n")
   
-  results[[i]] <- res
+  asset_id <- asset_from_path(collection_id, tif)
   
-  pb$tick()
+  # ---- SKIP IF ASSET EXISTS ----
+  if(asset_exists(asset_id) && !overwrite){
+    cat("✓ EE asset exists -> skip:", asset_id, "\n")
+    next
+  }
   
+  gcs_uri <- gcs_uri_from_tif(tif)
+  
+  # ---- UPLOAD IF NEEDED ----
+  upload_if_needed(tif, gcs_uri)
+  
+  # ---- BUILD MANIFEST ----
+  manifest <- build_manifest(tif, asset_id, gcs_uri)
+  
+  manifest_file <- file.path(
+    manifest_dir,
+    paste0(basename(tif), ".json")
+  )
+  
+  write_json(
+    manifest,
+    manifest_file,
+    auto_unbox = TRUE,
+    pretty = TRUE
+  )
+  
+  manifest_paths <- c(manifest_paths, manifest_file)
 }
 
-stopCluster(cl)
+cat("\nManifests ready:", length(manifest_paths), "\n")
 
-# ---- CHECK COLLECTION ----
+if(length(manifest_paths) == 0){
+  cat("Nothing to ingest.\n")
+  quit()
+}
+
+# =========================================
+# STEP 3 — INGESTION (BATCHED)
+# =========================================
+
+cat("\n== STARTING INGESTION ==\n")
+
+chunks <- split(
+  manifest_paths,
+  ceiling(seq_along(manifest_paths)/batch_size)
+)
+
+for(i in seq_along(chunks)){
+  
+  cat("\nBatch", i, "of", length(chunks), "\n")
+  
+  batch <- chunks[[i]]
+  
+  for(manifest in batch){
+    
+    cmd <- paste(
+      "earthengine upload image --manifest",
+      shQuote(manifest)
+    )
+    
+    system(paste(cmd, "&"))
+  }
+  
+  # throttle to avoid EE quota issues
+  Sys.sleep(10)
+}
+
+cat("\nAll tasks submitted.\n")
+
+# =========================================
+# STEP 4 — CHECK COLLECTION
+# =========================================
 
 ic <- ee$ImageCollection(collection_id)
 
+cat("\nCollection size:\n")
 print(ic$size()$getInfo())
