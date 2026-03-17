@@ -1,4 +1,4 @@
-var v_out = '1'
+var v_out = '2'
 
 var Palettes = require('users/mapbiomas/modules:Palettes.js');
 var palette = Palettes.get('classification8');
@@ -19,7 +19,7 @@ Map.addLayer(bioma250mil, {}, 'Bioma Raster', false)
 
 //var forestMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION/BR_forestMask_conn')
 //var forestMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION/nonforestMask85a23_100m_v2_conn')
-var nonforestMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/natural_Mask85a24_100m_v1_conn')
+var nonforestMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/natural_Mask85a24_100m_v2_conn')
 //print(forestMap)
 print(nonforestMap)
 
@@ -64,7 +64,7 @@ for (var i_year=0;i_year<years.length; i_year++){
 //  Map.addLayer(distanceTonatural_maior500ha_ano, {  min: 0,  max: 25000,palette: ['yellow','red','#3d1817']}, 'distanceTonatural_maior500ha_ano', true)
 //  Map.addLayer(distanceTonatural_maior100ha_ano, {  min: 0,  max: 25000,palette: ['yellow','red','#3d1817']}, 'distanceTonatural_maior100ha_ano', true)
 
-  var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/'
+  var dirout = 'projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/'
   
   // Get a list of forest fragments using connectedComponents().
   var naturalFragments_menor1000ha_ano = con_menor_1000ha_ano.connectedComponents({connectedness: ee.Kernel.plus(1),maxSize: 1001});
