@@ -2,11 +2,11 @@
 // dhemerson.costa@ipam.org.br
 
 // set version
-var collectionId = 10;
-var version = 1;
+var collectionId = 101;
+var version = 2;
 
 // set patch id folder
-var patchMorphology = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/morphology')
+var patchMorphology = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/morphology-v2')
   .toBands();
 
 // Set years to be processed 
@@ -23,7 +23,7 @@ years_list.forEach(function(year_i) {
   
   // bind patchID
   recipeMorphology = recipeMorphology.addBands(
-    patchMorphology.select('nativeMask_classification_' + year_i + '_morphology_b1')
+    patchMorphology.select('morphology_' + year_i +'_b1')
       .rename('morphology_' + year_i)
       .selfMask()
     );
