@@ -12,7 +12,7 @@ pattern_name <- "fragment_area"
 
 # GCS
 bucket_name <- "shared-development-storage"
-prefix <- "AUXILIARES/DEGRADACAO/COL_101/fragment_id"
+prefix <- "AUXILIARES/DEGRADACAO/COL_101/fragment_area"
 gcp_project <- "mapbiomas-mosaics"
 bucket_location <- "US"
 
