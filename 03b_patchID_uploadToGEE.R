@@ -90,7 +90,7 @@ build_manifest <- function(tif, asset_id, gcs_uri){
       )
     ),
     pyramidingPolicy = pyr_policy,
-    missingData = list(value = nodata_value)
+    missingData = list(values = list(nodata_value))
   )
 }
 
