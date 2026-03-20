@@ -146,8 +146,8 @@ print('output:', recipe)
 // export
 Export.image.toAsset({
 	image: recipe,
-  description: 'degradation_secondaryVegetation_' + collectionId + '_v' + version,
-  assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/' + 'degradation_secondaryVegetation_' + collectionId + '_v' + version,
+  description: 'degradation_secondaryVegetation_col' + collectionId + '_v' + version,
+  assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/' + 'degradation_secondaryVegetation_col' + collectionId + '_v' + version,
   region: image.geometry(),
   pyramidingPolicy:'mode',
   scale: 30,
