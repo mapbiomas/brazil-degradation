@@ -18,21 +18,24 @@ Map.addLayer(bioma250mil, {}, 'Bioma Raster', false)
 
 //var forestMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION/BR_forestMask_conn')
 //var forestMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION/forestMask85a22_100m_v5_conn')
-var nonforMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/natural_Mask85a24_100m_v1_conn')
+var nonforMap = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/natural_Mask85a24_100m_v2_conn')
 //print(forestMap)
 print(nonforMap)
 
-var natural_mask_maior1000ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/natural_mask_maior1000ha_85_241')
-var natural_mask_maior500ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/natural_mask_maior500ha_85_241')
-var natural_mask_maior100ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/natural_mask_maior100ha_85_241')
+var natural_mask_maior1000ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/natural_mask_maior1000ha_85_242')
+var natural_mask_maior500ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/natural_mask_maior500ha_85_242')
+var natural_mask_maior100ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/natural_mask_maior1000ha_85_242')
 
-var distanceTonatural_maior1000ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/distanceToforestMask_maior1000ha_85_241')
-var distanceTonatural_maior500ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/distanceToforestMask_maior500ha_85_241')
-var distanceTonatural_maior100ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col10_v1/BR_Distance/distanceToforestMask_maior100ha_85_241')
+var distanceTonatural_maior1000ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/distanceToforestMask_maior1000ha_85_242')
+var distanceTonatural_maior500ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/distanceToforestMask_maior500ha_85_242')
+var distanceTonatural_maior100ha = ee.Image('projects/mapbiomas-workspace/DEGRADACAO/ISOLATION_col101_v2/BR_Distance/distanceToforestMask_maior100ha_85_242')
 
 print(distanceTonatural_maior1000ha)
 
-var years = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994','1995','1996','1997','1998','1999','2000','2001','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020','2021','2022','2023', '2024'];
+var years = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994',
+             '1995','1996','1997','1998','1999','2000','2001','2002','2003','2004',
+             '2005','2006','2007','2008','2009','2010','2011','2012','2013','2014',
+             '2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'];
 //var years = ['2022'];
 
 for (var i_year=0;i_year<years.length; i_year++){
@@ -249,26 +252,26 @@ var distances1000ha = natural_mask_maior1000ha.unmask(0).multiply(0)
 
 
 
-var dirout = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/isolation/'
-var v_out = '1'
+var dirout = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/isolation-v2/'
+var v_out = '2'
 
 Export.image.toAsset({
    "image": distances100ha.toInt16(),
-   "description": 'isolation_100ha_col10'+'_v' + v_out,
+   "description": 'isolation_100ha_col101'+'_v' + v_out,
    "assetId": dirout + 'isolation_100ha_col10'+'_v' + v_out,
    "scale": 100, "pyramidingPolicy": {'.default': 'mode'},"maxPixels": 1e13, "region": geometry
   });  
   
 Export.image.toAsset({
    "image": distances500ha.toInt16(),
-   "description": 'isolation_500ha_col10'+'_v' + v_out,
+   "description": 'isolation_500ha_col101'+'_v' + v_out,
    "assetId": dirout + 'isolation_500ha_col10'+'_v' + v_out,
    "scale": 100, "pyramidingPolicy": {'.default': 'mode'},"maxPixels": 1e13, "region": geometry
   });  
   
 Export.image.toAsset({
    "image": distances1000ha.toInt16(),
-   "description": 'isolation_1000ha_col10'+'_v' + v_out,
+   "description": 'isolation_1000ha_col101'+'_v' + v_out,
    "assetId": dirout + 'isolation_1000ha_col10'+'_v' + v_out,
    "scale": 100, "pyramidingPolicy": {'.default': 'mode'},"maxPixels": 1e13, "region": geometry
   });  
