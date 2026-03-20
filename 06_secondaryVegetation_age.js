@@ -1,62 +1,154 @@
-// export secondary vegetation age by cover type
-// dhemerson.costa@ipam.org.br
- 
-// set version
-var version = 1;
+/**
+  Description: Calculates the number of consecutive years that the pixel
+  has belonged to the targetClass (e.g., Pasture), counting backwards from
+  the last year of the series.
 
-// read coverage by mapbiomas collection 8 
-var coverage = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1');
+  What it shows: This is crucial for identifying "old" vs. "recent" areas. 
+  For example, if the class is Pasture, a high value represents consolidated 
+  pasture, while a low value represents a recent conversion.
+ */
 
-// read age fire by mapbiomas fogo collection 2.1
-var age = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_secondary_vegetation_age_v1');
+// Define the MapBiomas asset path
+var asset = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/degradation_nativeReference_col101_v2';
 
-// set native classes
-var native_classes = [3, 4, 5, 6, 11, 12, 49, 50];
+// Target class to be analyzed (1 = binary native classes when mask.gte(1)) 
+var targetClass = 1;
 
-// build empty recipe
+//
+var collectionId = 101;
+var version = 2;
+
+// Prefix used in the image band names
+var bandPrefix = 'classification_';
+
+// List of years available in the collection
+var years = [
+    1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992,
+    1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+    2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
+    2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
+    2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024
+];
+
+// Load the multi-band image (each band represents a year)
+var image = ee.Image(asset);
+
+// Define a general spectral palette for continuous values
+var palette = [
+    "#a50026", "#d73027", "#f46d43", "#fdae61", "#fee08b",
+    "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850"
+];
+
+// Import MapBiomas official color modules
+var Palettes = require('users/mapbiomas/modules:Palettes.js');
+var paletteLulc = Palettes.get('classification9');
+
+/**
+ * Calculates the age (consecutive years) of a specific class.
+ * @param {ee.Image} image - The multi-band LULC image.
+ * @param {number} targetClass - The class value to calculate age for.
+ * @param {Array} years - Array of years to iterate through.
+ * @param {string} bandPrefix - Prefix of the band names.
+ * @returns {ee.Image} - A multi-band image representing the age for each year.
+ */
+var getClassAge = function (image, targetClass, years, bandPrefix) {
+
+    // Mask only pixels equal to the target class
+    var classMask = ee.Image(image).gte(targetClass);
+
+    // Initialize state: running age + accumulated output bands
+    var initialState = ee.Dictionary({
+        ageImage: ee.Image(0),
+        output: ee.Image([])
+    });
+
+    // Iteratively calculate age year by year based on class persistence
+    var result = ee.List(years).iterate(
+        function (year, state) {
+
+            state = ee.Dictionary(state);
+            year = ee.Number(year).format('%.0f');
+
+            var ageImage = ee.Image(state.get('ageImage'));
+            var output = ee.Image(state.get('output'));
+
+            var currentImageBand = ee.String(bandPrefix).cat(year);
+            var currentImage = classMask.select([currentImageBand]).unmask(0);
+
+            // If class exists, add 1 to previous age, otherwise reset to 0
+            var currentAge = ageImage.add(1)
+                .multiply(currentImage)
+                .rename(ee.String('age_').cat(year));
+
+            // Accumulate bands and update state
+            return ee.Dictionary({
+                ageImage: currentAge,
+                output: output.addBands(currentAge)
+            });
+        },
+        initialState
+    );
+
+    return ee.Image(ee.Dictionary(result).get('output'));
+};
+
+// --- Visualization Section ---
+
+// Original LULC for the latest year
+Map.addLayer(image, {
+    bands: ['classification_2024'],
+    min: 0, max: 69,
+    palette: paletteLulc
+}, 'LULC 2024', false);
+
+
+// Class Age (ALL YEARS)
+var ages = getClassAge(image, targetClass, years, bandPrefix).selfMask();
+
+// remove primary vegetation which is age == all years length 
+// Apply this mask to all age bands
+var ages = ages.updateMask(ages.select('age_2024').neq(40));
+
+Map.addLayer(ages , {} , 'Class ' + String(targetClass) + ' Ages');
+
+// Optional: visualize another year
+Map.addLayer(ages.select('age_2024'), {
+    min: 1, max: years.length,
+    palette: palette
+}, 'Class ' + String(targetClass) + ' Age 2024', false);
+
+// Inspect full multi-band output
+print('All age bands', ages);
+
+// cros with landcover
 var recipe = ee.Image([]);
-
-// set years
-var years = [1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-             1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-             2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017,
-             2018, 2019, 2020, 2021, 2022, 2023];
-
-// for each year
-years.forEach(function(year_i) {
-  // get sec veg age
-  var sec_i = age.select('secondary_vegetation_age_' + year_i)
-    .multiply(100)
-    .selfMask();
+years.forEach(function(year) {
   
-  // get cover
-  var cover_i = coverage.select('classification_' + year_i)
-    // select native classes
-    .remap({'from': native_classes,
-            'to': native_classes,
-            'defaultValue': 0
-    }).selfMask();
-
-  // combine sec veg age and cover into a unique id 
-  var xi = sec_i.add(cover_i);
+  // get age
+  var age_i = ages.select('age_' + year)
   
-  //Map.addLayer(sec_i, {}, 'sec_i' + year_i);
-  //Map.addLayer(cover_i, {}, 'cover_i' + year_i);
-  //Map.addLayer(xi, {}, 'xi ' + year_i);
+  // get lulc and mask only to secondary vegetation 
+  var lulc_i = ee.Image(asset).select('classification_' + year).updateMask(age_i)
   
+  // combine
+  var result_i = age_i.multiply(100).selfMask()
+                      .add(lulc_i)
+                      .rename('age_' + year)
+                      
   // store
-  recipe = recipe.addBands(xi.rename('age_' + year_i));
+  recipe = recipe.addBands(result_i);
   
-});
+})
 
-print(recipe);
-
+Map.addLayer(recipe.select('age_2024'), {}, 'stored');
+print('output:', recipe)
+// export 
 // export
 Export.image.toAsset({
 	image: recipe,
-  description: 'secondary_vegetation_age_col9_v' + version,
-  assetId: 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/secondary_vegetation/' + 'secondary_vegetation_age_col9_v' + version,
-  region: coverage.geometry(),
+  description: 'degradation_secondaryVegetation_' + collectionId + '_v' + version,
+  assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/' + 'degradation_secondaryVegetation_' + collectionId + '_v' + version,
+  region: image.geometry(),
   pyramidingPolicy:'mode',
   scale: 30,
   maxPixels: 1e13,
