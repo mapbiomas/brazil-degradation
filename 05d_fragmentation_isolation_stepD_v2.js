@@ -235,7 +235,9 @@ var distances500ha = natural_mask_maior500ha.unmask(0).multiply(0)
   .where(frag50_dist10k_500, 5) // Fragmentos de até 50 ha distantes 10 km de áreas fonte
   .where(frag25_dist10k_500, 6) // Fragmentos de até 25 ha distantes 10 km de áreas fonte
   .where(frag50_dist20k_500, 8) // Fragmentos de até 50 ha distantes 20 km de áreas fonte
-  .where(frag25_dist20k_500, 9); // Fragmentos de até 25 ha distantes 20 km de áreas fonte
+  .where(frag25_dist20k_500, 9) // Fragmentos de até 25 ha distantes 20 km de áreas fonte
+  .rename(newBands)
+  .selfMask()
 
 var distances1000ha = natural_mask_maior1000ha.unmask(0).multiply(0)
   .where(natural_mask_maior1000ha, 10) // Área fonte com 1000 ha ou mais
@@ -247,7 +249,9 @@ var distances1000ha = natural_mask_maior1000ha.unmask(0).multiply(0)
   .where(frag25_dist10k_1000, 6) // Fragmentos de até 25 ha distantes 10 km de áreas fonte
   .where(frag100_dist20k_1000, 7) // Fragmentos de até 100 ha distantes 20 km de áreas fonte
   .where(frag50_dist20k_1000, 8) // Fragmentos de até 50 ha distantes 20 km de áreas fonte
-  .where(frag25_dist20k_1000, 9); // Fragmentos de até 25 ha distantes 20 km de áreas fonte
+  .where(frag25_dist20k_1000, 9) // Fragmentos de até 25 ha distantes 20 km de áreas fonte
+  .rename(newBands)
+  .selfMask()
 
 
 
