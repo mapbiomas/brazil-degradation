@@ -182,7 +182,7 @@ log_step("CLUMP", {
   
   execGRASS(
     "r.clump",
-    flags = "overwrite",
+    flags = c("overwrite", "d"),
     parameters = list(
       input  = fragment,
       output = fragment_id
