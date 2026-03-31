@@ -2,14 +2,14 @@
 // dhemerson.costa@ipam.org.br
 
 // set version
-var collectionId = 10;
-var version = 1;
+var collectionId = 101;
+var version = 2;
 
 // set patch id folder
-var patchID = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id')
+var patchID = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v2')
   .toBands();
 
-var patchSize = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-size-all')
+var patchSize = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-size-all-v2')
   .toBands();
   print(patchSize)
 
