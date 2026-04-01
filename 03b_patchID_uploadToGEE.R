@@ -16,7 +16,7 @@ pattern_name <- "fragment_id"
 bucket_name <- "shared-development-storage"
 prefix <- "AUXILIARES/DEGRADACAO/COL_101/fragment_id"
 
-collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/path-id-v3"
+collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v3"
 
 manifest_dir <- "./manifests"
 dir.create(manifest_dir, showWarnings = FALSE)
