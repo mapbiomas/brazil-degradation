@@ -7,16 +7,16 @@ library(rgee)
 library(jsonlite)
 
 # ---- INITIALIZE EE ----
-ee_Initialize(project = "mapbiomas-mosaics")
+ee_Initialize(project = "ee-sad-cerrado")
 
 # ---- CONFIG ----
-tif_dir <- "./ssh_download/"
+tif_dir <- "./results"
 pattern_name <- "fragment_id"
 
 bucket_name <- "shared-development-storage"
 prefix <- "AUXILIARES/DEGRADACAO/COL_101/fragment_id"
 
-collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/path-id-v2"
+collection_id <- "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/path-id-v3"
 
 manifest_dir <- "./manifests"
 dir.create(manifest_dir, showWarnings = FALSE)
