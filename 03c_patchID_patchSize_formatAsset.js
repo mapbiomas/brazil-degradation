@@ -3,13 +3,13 @@
 
 // set version
 var collectionId = 101;
-var version = 2;
+var version = 3;
 
 // set patch id folder
-var patchID = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v2')
+var patchID = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-id-v3')
   .toBands();
 
-var patchSize = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-size-all-v2')
+var patchSize = ee.ImageCollection('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/patch-size-all-v3')
   .toBands();
   print(patchSize)
 
