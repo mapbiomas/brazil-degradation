@@ -9,21 +9,21 @@
  */
 
 // Define the MapBiomas asset path
-var asset = 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/degradation_nativeReference_col101_v2';
+var asset = 'projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_deforestation_secondary_vegetation_v3';
 
 // Target class to be analyzed (1 = binary native classes when mask.gte(1)) 
 var targetClass = 1;
 
 //
 var collectionId = 101;
-var version = 2;
+var version = 3;
 
 // Prefix used in the image band names
 var bandPrefix = 'classification_';
 
 // List of years available in the collection
 var years = [
-    1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992,
+    1987, 1988, 1989, 1990, 1991, 1992,
     1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
     2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
     2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
@@ -31,7 +31,14 @@ var years = [
 ];
 
 // Load the multi-band image (each band represents a year)
-var image = ee.Image(asset);
+var image = ee.Image(asset)
+
+// get classes 3 and 5 of secondary vegetation
+image = image.eq(3)
+  .or(image.eq(5))        // 1 where value is 3 or 5, else 0
+  .selfMask();          // mask out zeros
+  
+print(image)
 
 // Define a general spectral palette for continuous values
 var palette = [
