@@ -3,8 +3,6 @@
     <h1>Brazil's Degradation Module</h1>
 </div>
 
-# Brazil's Degradation Module
-
 ## About
 
 Welcome to the Degradation Driver Layers repository for the [MapBiomas Degradation Module](https://plataforma.brasil.mapbiomas.org/). This repository contains the source code used to generate spatial layers that identify key drivers and structural indicators of native vegetation degradation across Brazil.
