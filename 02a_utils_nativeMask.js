@@ -2,17 +2,16 @@
 // any issue, bug or report write to dhemerson.costa@ipam.org.br and/or mrosa@arcplan.com.br
 
 // set version
-var version = 2;
+var version = 1;
 
 // -- * definitions
-// 3 (forest), 4 (savanna), 5 (mangrove), 6 (flooded forest), 11 (wetland), 12 (grassland)
 var native_classes = {
   'amazonia':       [3, 4, 5, 6, 11, 12, 49, 50],
-  'caatinga':       [3, 4, 5, 11, 12, 49, 50],
+  'caatinga':       [3, 4, 5, 11, 12, 49, 50, 77],
   'cerrado':        [3, 4, 5, 11, 12, 49, 50],
   'mata_atlantica': [3, 4, 5, 11, 12, 49, 50],
-  'pampa':          [3, 4, 5, 11, 12, 49, 50],
-  'pantanal':       [3, 4, 5, 11, 12, 49, 50]
+  'pampa':          [3, 4, 5, 11, 12, 49, 50, 84],
+  'pantanal':       [3, 4, 5, 7, 11, 12, 49, 50]
 };
 
 // dset classes to be ignored (which doesn't fragment native vegetation)
@@ -30,22 +29,22 @@ var ignore_classes = {
 var years_list = [1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
                   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
                   2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017,
-                  2018, 2019, 2020, 2021, 2022, 2023, 2024
+                  2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
                   ];
 
 // read biomes
-var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-2019-raster');
-//Map.addLayer(biomes.randomVisualizer(),{}, 'Biomas');
+var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biome_2025_buf5k_30m');
+Map.addLayer(biomes.randomVisualizer(),{}, 'Biomas');
 
 // build biomes dictionary
 var biomes_name = ['amazonia', 'caatinga', 'cerrado', 'mata_atlantica', 'pampa', 'pantanal'];
 var biomes_dict = {
   'amazonia':       1,
-  'caatinga':       5,
-  'cerrado':        4,
-  'mata_atlantica': 2,
-  'pampa':          6,
-  'pantanal':       3
+  'caatinga':       2,
+  'cerrado':        3,
+  'mata_atlantica': 4,
+  'pampa':          5,
+  'pantanal':       6
 };
 
 var recipe = ee.Image([]);
@@ -54,7 +53,7 @@ var recipe = ee.Image([]);
 years_list.forEach(function(year_j) {
 
   // read collection 
-  var collection = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1')
+  var collection = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection11/mapbiomas_brazil_collection11_coverage_v3')
     .select('classification_' + year_j);
     
     var recipe_year = ee.Image(0);
@@ -87,12 +86,12 @@ years_list.forEach(function(year_j) {
 print(recipe)
 
 Map.addLayer(recipe.select('classification_1985').randomVisualizer(), {}, '1985')
-Map.addLayer(recipe.select('classification_2024').randomVisualizer(), {}, '2024')
+Map.addLayer(recipe.select('classification_2025').randomVisualizer(), {}, '2025')
 
 Export.image.toAsset({
 	image: recipe,
-  description: 'nativeMask_' + 'col10_v' + version,
-  assetId: 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/native_mask/' + 'nativeMask_' + 'col101_v' + version,
+  description: 'nativeMask_' + 'col11_v' + version,
+  assetId: 'projects/mapbiomas-workspace/DEGRADACAO/COLECAO/BETA/PROCESS/native_mask/' + 'nativeMask_' + 'col11_v' + version,
   region: biomes.geometry(),
   scale: 30,
   maxPixels: 1e13,
