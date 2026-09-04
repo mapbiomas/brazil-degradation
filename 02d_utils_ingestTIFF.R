@@ -3,7 +3,7 @@ library(googleCloudStorageR)
 library(parallel)
 
 ## load json key
-gcs_auth("key.json")
+gcs_auth("../COL101/mapbiomas-drc-0c17477b4f08.json")
 
 ## define gcs
 bucket_name <- "shared-development-storage"
@@ -15,7 +15,7 @@ dir.create(output, showWarnings = FALSE, recursive = TRUE)
 ## list files
 files <- gcs_list_objects(
   bucket = bucket_name,
-  prefix = "AUXILIARES/DEGRADACAO/COL_101/nativeMask/"
+  prefix = "AUXILIARES/DEGRADACAO/COL_11/nativeMask/"
 )
 
 ## filter .tif
@@ -30,7 +30,7 @@ mclapply(
   function(f) {
     
     # re-authenticate inside worker (safe practice)
-    gcs_auth("mapbiomas-drc-0c17477b4f08.json")
+    gcs_auth("../COL101/mapbiomas-drc-0c17477b4f08.json")
     
     local_name <- basename(f)
     
