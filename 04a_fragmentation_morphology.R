@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
 # Run with:
-# parallel -j 12 Rscript 03a_fragmentation_morphology.R ::: $(seq 1985 2024)
+# parallel -j 12 Rscript 03a_fragmentation_morphology.R ::: $(seq 1985 2025)
 
 ## clean temporaries
-#BASE="/mnt/Files-Geo/Arquivos/DEGRADACAO/LSMETRICS/COL101/grassdata"
-#find "$BASE" -maxdepth 3 -type d -path "$BASE/COL101_*/PERMANENT/.tmp" -print -exec rm -rf {} +
+#BASE="/mnt/Files-Geo/Arquivos/DEGRADACAO/LSMETRICS/COL11/grassdata"
+#find "$BASE" -maxdepth 3 -type d -path "$BASE/COL11_*/PERMANENT/.tmp" -print -exec rm -rf {} +
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) stop("Provide year")
@@ -58,11 +58,11 @@ grass_path <- system("grass --config path", intern = TRUE)
 gisDbase <- "./grassdata"
 dir.create(gisDbase, recursive = TRUE, showWarnings = FALSE)
 
-location_name <- paste0("COL101_", year)
+location_name <- paste0("COL11_", year)
 location_path <- file.path(gisDbase, location_name)
 mapset_name <- "PERMANENT"
 
-input_raster <- paste0("./tif/nativeMask_classification_", year, ".tif")
+input_raster <- paste0("./tif/nativeMask-classification_", year, ".tif")
 grass_raster_name <- paste0("nativeMask_", year)
 
 results_dir <- "./results"
