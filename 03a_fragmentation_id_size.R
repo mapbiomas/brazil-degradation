@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# parallel -j 12 Rscript 03a_fragmentation_id_area.R ::: $(seq 1985 2024)
+# parallel -j 12 Rscript 03a_fragmentation_id_area.R ::: $(seq 1985 2025)
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) stop("Provide year")
@@ -55,7 +55,7 @@ location_name <- paste0("COL101_", year)
 location_path <- file.path(gisDbase, location_name)
 mapset_name   <- "PERMANENT"
 
-input_raster <- paste0("./tif/nativeMask_classification_", year, ".tif")
+input_raster <- paste0("./tif/nativeMask-classification_", year, ".tif")
 
 results_dir <- "./results"
 dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
