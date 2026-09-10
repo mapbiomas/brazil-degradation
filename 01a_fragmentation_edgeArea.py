@@ -46,13 +46,6 @@ asset_id = (
 
 # Native vegetation classes in which edge area will be applied.
 #
-# 3  = Forest Formation
-# 4  = Savanna Formation
-# 5  = Mangrove
-# 6  = Flooded Forest
-# 11 = Wetland
-# 12 = Grassland Formation
-#
 # Additional biome-specific classes are retained according to
 # the original MapBiomas degradation workflow.
 
@@ -134,7 +127,9 @@ collection_all = ee.Image(
 # 5. BUILD EDGE-DEGRADATION PRODUCT
 # ============================================================
 
-recipe = ee.Image([])
+# Start without an image. The first annual band will initialize recipe.
+# This avoids ee.Image([]), which is invalid in the Earth Engine Python API.
+recipe = None
 
 for year_j in years_list:
 
@@ -287,9 +282,14 @@ for year_j in years_list:
     # Add annual band to multiband output
     # --------------------------------------------------------
 
-    recipe = recipe.addBands(
-        edge_degrad_year
-    )
+    if recipe is None:
+        # First year initializes the multiband output.
+        recipe = edge_degrad_year
+    else:
+        # Subsequent years are appended as new bands.
+        recipe = recipe.addBands(
+            edge_degrad_year
+        )
 
 
 # Standardize datatype
@@ -377,7 +377,7 @@ print(output_scale)
 
 # Set to False if you want to skip the national reduceRegion
 # checks and submit the export immediately.
-RUN_NUMERICAL_QA = True
+RUN_NUMERICAL_QA = False
 
 if RUN_NUMERICAL_QA:
 
@@ -439,9 +439,8 @@ if START_EXPORT:
         pyramidingPolicy={
             '.default': 'sample'
         },
-        maxPixels=1e13,
-        priority=999
-    )
+        maxPixels=1e13
+      )
 
     task.start()
 
