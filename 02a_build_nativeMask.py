@@ -1,13 +1,16 @@
 # ============================================================
-# NATIVE VEGETATION MASK - MAPBIOMAS COLLECTION 11
+# CATEGORICAL NATIVE VEGETATION REFERENCE
+# MAPBIOMAS COLLECTION 11
 #
 # Outputs:
-#   1. One multiband image to an Earth Engine Asset
-#   2. One single-band GeoTIFF per year to Google Cloud Storage
+#   1. One multiband categorical image to an Earth Engine Asset
+#   2. One single-band categorical GeoTIFF per year to GCS
 #
-# Original contacts:
-# dhemerson.costa@ipam.org.br
-# mrosa@arcplan.com.br
+# IMPORTANT:
+#   Pixels considered native/ignored for fragmentation retain
+#   their ORIGINAL MapBiomas class value.
+#
+#   All other pixels remain masked / NoData.
 # ============================================================
 
 
@@ -28,7 +31,6 @@ import geemap
 
 ee.Authenticate()
 
-# Change this to the Google Cloud project used to run EE.
 GCP_PROJECT = "mapbiomas-brazil"
 
 ee.Initialize(project=GCP_PROJECT)
@@ -45,6 +47,8 @@ years_list = list(range(1985, 2026))
 
 # ------------------------------------------------------------
 # Native vegetation classes by biome
+#
+# PRESERVED EXACTLY FROM YOUR INPUT SCRIPT
 # ------------------------------------------------------------
 
 native_classes = {
@@ -60,10 +64,10 @@ native_classes = {
 # ------------------------------------------------------------
 # Classes ignored for fragmentation
 #
-# 13 = Other non-forest
-# 29 = Rocky outcrop
-# 32 = Hypersaline tidal flat
-# 33 = Water
+# These are STILL RETAINED in the categorical raster.
+#
+# This is important because in the current methodology these
+# classes participate in connectivity.
 # ------------------------------------------------------------
 
 ignore_classes = {
@@ -78,6 +82,8 @@ ignore_classes = {
 
 # ------------------------------------------------------------
 # Biome IDs
+#
+# PRESERVED EXACTLY FROM YOUR INPUT SCRIPT
 # ------------------------------------------------------------
 
 biomes_dict = {
@@ -106,6 +112,7 @@ COLLECTION_ASSET = (
     "collection11/mapbiomas_brazil_collection11_coverage_v3"
 )
 
+
 biomes = ee.Image(BIOMES_ASSET)
 
 collection_all = ee.Image(COLLECTION_ASSET)
@@ -117,25 +124,28 @@ export_region = biomes.geometry()
 # 4. OUTPUT SETTINGS
 # ============================================================
 
-# ------------------------------------------------------------
-# Export to Earth Engine Asset?
-# ------------------------------------------------------------
-
 EXPORT_TO_ASSET = True
+EXPORT_TO_GCS = True
 
-asset_name = f"degradation_nativeReference_col11_v{version}"
+
+# ------------------------------------------------------------
+# Earth Engine Asset
+# ------------------------------------------------------------
+
+asset_name = (
+    f"degradation_nativeReference_col11_v{version}"
+)
 
 asset_id = (
-    "projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-11/public/"
+    "projects/mapbiomas-brazil/assets/"
+    "DEGRADATION/COLLECTION-11/public/"
     f"{asset_name}"
 )
 
 
 # ------------------------------------------------------------
-# Export to Google Cloud Storage?
+# Google Cloud Storage
 # ------------------------------------------------------------
-
-EXPORT_TO_GCS = True
 
 bucket_name = "shared-development-storage"
 
@@ -143,14 +153,14 @@ bucket_address = (
     "AUXILIARES/"
     "DEGRADACAO/"
     "COL_11/"
-    "temp/"
+    "nativeMask"
 )
 
 gcs_base_name = "nativeMask"
 
 
 # ------------------------------------------------------------
-# General export configuration
+# Export configuration
 # ------------------------------------------------------------
 
 EXPORT_SCALE = 30
@@ -161,7 +171,7 @@ EXPORT_AS_COG = True
 
 
 # ============================================================
-# 5. BUILD NATIVE VEGETATION MASK
+# 5. BUILD CATEGORICAL NATIVE REFERENCE
 # ============================================================
 
 recipe = None
@@ -169,18 +179,35 @@ recipe = None
 
 for year_j in years_list:
 
-    print(f"Building {year_j}...")
+    print(f"Building categorical reference {year_j}...")
 
-    # Select yearly MapBiomas band
-    collection = collection_all.select(
-        f"classification_{year_j}"
-    )
-
-    # Empty yearly image
-    recipe_year = ee.Image(0)
+    band_name = f"classification_{year_j}"
 
     # --------------------------------------------------------
-    # Process biome-specific rules
+    # Original MapBiomas classification
+    # --------------------------------------------------------
+
+    collection = (
+        collection_all
+        .select(band_name)
+        .toUint8()
+    )
+
+
+    # --------------------------------------------------------
+    # Empty image with SAME projection/type/geometry as source
+    #
+    # This is preferable to ee.Image(0), because we retain the
+    # source raster's projection characteristics.
+    # --------------------------------------------------------
+
+    recipe_year = collection.updateMask(
+        ee.Image.constant(0)
+    )
+
+
+    # --------------------------------------------------------
+    # Apply biome-specific rules
     # --------------------------------------------------------
 
     for biome_k in biomes_name:
@@ -190,60 +217,80 @@ for year_j in years_list:
             + ignore_classes[biome_k]
         )
 
-        # Native + ignored classes -> 1
-        # Everything else -> 0
-        native_mask = (
-            collection
 
+        # ----------------------------------------------------
+        # Build boolean mask:
+        #
+        # eligible classes = 1
+        # everything else  = 0
+        #
+        # BUT DO NOT remap the final raster.
+        # ----------------------------------------------------
+
+        class_mask = (
+            collection
             .remap(
                 classes_to_keep,
                 [1] * len(classes_to_keep),
                 defaultValue=0,
             )
-
-            # Restrict to biome
-            .updateMask(
-                biomes.eq(
-                    biomes_dict[biome_k]
-                )
-            )
-
-            # Keep only 1-valued pixels
-            .selfMask()
+            .eq(1)
         )
 
+
         # ----------------------------------------------------
-        # Optional infrastructure layer
+        # Restrict to biome
         # ----------------------------------------------------
-        #
-        # Equivalent to original JS:
-        #
-        # native_mask = native_mask.blend(
-        #     dnit_roads.remap([1], [21])
-        # )
-        #
-        # Uncomment if dnit_roads is defined.
+
+        biome_mask = biomes.eq(
+            biomes_dict[biome_k]
+        )
 
 
-        # Merge biome mask into yearly image
-        recipe_year = (
-            recipe_year
-            .blend(native_mask)
-            .selfMask()
+        # ----------------------------------------------------
+        # KEY CHANGE
+        #
+        # Preserve original categorical class values.
+        #
+        # Example:
+        #
+        # class 3  stays 3
+        # class 4  stays 4
+        # class 12 stays 12
+        # class 29 stays 29
+        #
+        # Non-eligible pixels become masked.
+        # ----------------------------------------------------
+
+        categorical_piece = (
+            collection
+            .updateMask(class_mask)
+            .updateMask(biome_mask)
+        )
+
+
+        # ----------------------------------------------------
+        # Add biome to Brazil-wide annual raster
+        # ----------------------------------------------------
+
+        recipe_year = recipe_year.blend(
+            categorical_piece
         )
 
 
     # --------------------------------------------------------
-    # Rename yearly band
+    # Rename / datatype
     # --------------------------------------------------------
 
-    recipe_year = recipe_year.rename(
-        f"classification_{year_j}"
+    recipe_year = (
+        recipe_year
+        .rename(band_name)
+        .toUint8()
     )
 
 
     # --------------------------------------------------------
-    # Add to final multiband image
+    # Add year to multiband image
     # --------------------------------------------------------
 
     if recipe is None:
@@ -259,7 +306,7 @@ for year_j in years_list:
 
 print()
 print("============================================")
-print("Native vegetation mask constructed.")
+print("Categorical native reference constructed.")
 print(f"Years: {years_list[0]} - {years_list[-1]}")
 print(f"Number of bands: {len(years_list)}")
 print("============================================")
@@ -277,10 +324,17 @@ Map.center_object(
     4
 )
 
-native_vis = {
+
+# ------------------------------------------------------------
+# Simple visualization.
+#
+# This is only for inspection.
+# Values are the ACTUAL MapBiomas classes.
+# ------------------------------------------------------------
+
+categorical_vis = {
     "min": 1,
-    "max": 1,
-    "palette": ["006400"],
+    "max": 84,
 }
 
 
@@ -288,8 +342,8 @@ Map.add_layer(
     recipe.select(
         "classification_1985"
     ),
-    native_vis,
-    "Native mask 1985",
+    categorical_vis,
+    "Categorical native reference 1985",
 )
 
 
@@ -297,8 +351,8 @@ Map.add_layer(
     recipe.select(
         "classification_2025"
     ),
-    native_vis,
-    "Native mask 2025",
+    categorical_vis,
+    "Categorical native reference 2025",
 )
 
 
@@ -313,13 +367,13 @@ export_tasks = []
 
 
 # ============================================================
-# 7A. EXPORT MULTIBAND IMAGE TO EARTH ENGINE ASSET
+# 7A. EXPORT MULTIBAND CATEGORICAL IMAGE TO EE ASSET
 # ============================================================
 
 if EXPORT_TO_ASSET:
 
     print()
-    print("Starting Earth Engine Asset export...")
+    print("Starting categorical EE Asset export...")
 
     asset_task = ee.batch.Export.image.toAsset(
 
@@ -332,18 +386,16 @@ if EXPORT_TO_ASSET:
         region=export_region,
 
         scale=EXPORT_SCALE,
-        
+
         maxPixels=MAX_PIXELS,
 
-        # Categorical / binary data
+        # Correct for categorical data
         pyramidingPolicy={
             ".default": "mode"
         },
     )
 
-
     asset_task.start()
-
 
     export_tasks.append({
         "type": "ASSET",
@@ -364,7 +416,7 @@ if EXPORT_TO_ASSET:
 if EXPORT_TO_GCS:
 
     print()
-    print("Starting Google Cloud Storage exports...")
+    print("Starting categorical GCS exports...")
     print()
 
 
@@ -388,32 +440,52 @@ if EXPORT_TO_GCS:
 
 
         # ----------------------------------------------------
+        # Select categorical band
+        # ----------------------------------------------------
+
+        export_image = recipe.select(
+            band_name
+        )
+
+
+        # ----------------------------------------------------
+        # Explicit GeoTIFF NoData representation
+        #
+        # All masked pixels become 0 in the stored raster,
+        # while 0 is declared as NoData.
+        #
+        # All valid MapBiomas categories are > 0.
+        # ----------------------------------------------------
+
+        export_image = export_image.unmask(0)
+
+
+        # ----------------------------------------------------
         # GeoTIFF configuration
         # ----------------------------------------------------
 
         if EXPORT_AS_COG:
 
             format_options = {
-                "cloudOptimized": True
+                "cloudOptimized": True,
+                "noData": 0,
             }
 
         else:
 
-            format_options = {}
+            format_options = {
+                "noData": 0,
+            }
 
 
         # ----------------------------------------------------
-        # Export task
+        # Export
         # ----------------------------------------------------
 
         gcs_task = (
             ee.batch.Export.image.toCloudStorage(
 
-                # Directly export the band from recipe.
-                # No intermediate EE Asset is required.
-                image=recipe.select(
-                    band_name
-                ),
+                image=export_image,
 
                 description=output_name,
 
@@ -429,7 +501,7 @@ if EXPORT_TO_GCS:
 
                 fileFormat="GeoTIFF",
 
-                formatOptions=format_options
+                formatOptions=format_options,
             )
         )
 
@@ -480,7 +552,7 @@ print("============================================")
 
 
 # ============================================================
-# 9. PRINT INITIAL TASK STATUS
+# 9. INITIAL TASK STATUS
 # ============================================================
 
 print()
