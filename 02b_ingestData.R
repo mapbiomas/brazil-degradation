@@ -2051,7 +2051,12 @@ ingest_into_grass <- function() {
   )
 
 
-  initGRASS(
+  # ------------------------------------------------------------
+  # Initialize GRASS using only arguments supported by the
+  # installed rgrass version.
+  # ------------------------------------------------------------
+
+  init_args <- list(
     gisBase = grass_path,
     home = grass_home,
     gisDbase = normalizePath(
@@ -2060,10 +2065,52 @@ ingest_into_grass <- function() {
     ),
     location = location_name,
     mapset = mapset_name,
-    override = TRUE,
-    pid = Sys.getpid(),
-    remove_GISRC = TRUE,
-    tempdir = grass_home
+    override = TRUE
+  )
+
+
+  init_formals <- names(
+    formals(
+      rgrass::initGRASS
+    )
+  )
+
+
+  if ("pid" %in% init_formals) {
+    init_args$pid <- Sys.getpid()
+  }
+
+
+  if ("remove_GISRC" %in% init_formals) {
+    init_args$remove_GISRC <- TRUE
+  }
+
+
+  if ("tempdir" %in% init_formals) {
+    init_args$tempdir <- grass_home
+  }
+
+
+  log_message(
+    "rgrass version: ",
+    as.character(
+      packageVersion("rgrass")
+    )
+  )
+
+
+  log_message(
+    "initGRASS supported args: ",
+    paste(
+      init_formals,
+      collapse = ", "
+    )
+  )
+
+
+  do.call(
+    rgrass::initGRASS,
+    init_args
   )
 
 
@@ -2113,10 +2160,7 @@ ingest_into_grass <- function() {
 
         memory = as.integer(
           cfg$grass_import_memory_mb
-        ),
-
-        # Keep GDAL single-threaded inside this annual process.
-        gdal_config = "GDAL_NUM_THREADS=1"
+        )
       )
     )
   }
