@@ -153,7 +153,7 @@ bucket_address = (
     "AUXILIARES/"
     "DEGRADACAO/"
     "COL_11/"
-    "nativeMask"
+    "temp"
 )
 
 gcs_base_name = "nativeMask"
