@@ -1,5 +1,5 @@
 # ============================================================
-# MAPBIOMAS / COL11_V2 — GCS SOURCE EXPORTER v4.9
+# MAPBIOMAS / COL11_V2 — GCS SOURCE EXPORTER v4.10
 #
 # Purpose
 # -------
@@ -952,8 +952,8 @@ def wait_for_existing_ee_task():
     print(f"Task ID:       {task_id}")
     print(f"Poll interval: {WAIT_POLL_SECONDS} seconds")
     print(
-        "No new COL11_V2 export tasks will be submitted "
-        "until this task is COMPLETED."
+        "No dependent source validation or new COL11_V2 export tasks "
+        "will run until this task is COMPLETED."
     )
     print("====================================================")
     print()
@@ -1049,7 +1049,7 @@ def print_plan():
 
     print()
     print("====================================================")
-    print("COL11_V2 GCS EXPORTER v4.9")
+    print("COL11_V2 GCS EXPORTER v4.10")
     print("====================================================")
     print(f"GCP project: {GCP_PROJECT}")
     print(f"GCS bucket:  gs://{BUCKET_NAME}")
@@ -1089,11 +1089,15 @@ def print_plan():
 # ============================================================
 
 print_plan()
-validate_expected_bands()
 
-# If enabled, this blocks here until the existing EE task completes.
-# The duplicate/GCS checks below still run normally after the gate opens.
+# IMPORTANT:
+# The watched Earth Engine task may be creating a source asset used by
+# this exporter (currently the MapBiomas Alerta asset). Therefore we must
+# wait BEFORE validating source bands.
 wait_for_existing_ee_task()
+
+# Validate sources only after the watched task reaches COMPLETED.
+validate_expected_bands()
 
 ANNUAL_EXPORT_ORDER = [
     "lulc",
