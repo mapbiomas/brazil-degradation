@@ -1,5 +1,5 @@
 # ============================================================
-# MAPBIOMAS / COL11_V2 — GCS SOURCE EXPORTER v4.10
+# MAPBIOMAS BRAZIL - DEGRADATION (V2.1)
 #
 # Purpose
 # -------
