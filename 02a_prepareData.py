@@ -1,9 +1,9 @@
 # ============================================================
-# MAPBIOMAS / COL11_V2 — GCS SOURCE EXPORTER v4.4
+# MAPBIOMAS / COL11_V2 — GCS SOURCE EXPORTER v4.9
 #
 # Purpose
 # -------
-# Export the canonical source rasters required by COL11_V2 Degradation to GCS,
+# Export the canonical source rasters required by COL11_V2 to GCS,
 # using one annual single-band GeoTIFF per year/theme (plus one
 # accumulated MapBiomas Alerta Brasil layer).
 #
@@ -18,7 +18,6 @@
 # - Annual GCS prefixes follow one simple naming convention:
 #     lulc_YEAR
 #     secondary_vegetation_YEAR
-#     secondary_vegetation_age_YEAR
 #     fire_monthly_YEAR
 #     canopy_disturbance_YEAR
 # - Derived temporal metrics (fire frequency, years since fire, etc.)
@@ -32,39 +31,17 @@
 # Secondary vegetation:
 #   Original DSV deforestation/secondary-vegetation classes, 1987-2025.
 #
-# Secondary vegetation age:
-#   Source is packed Int16. Exported product is DECODED age:
-#       age = floor(raw / 100)
-#   Age 0/background is written as NoData=0.
-#
-# Fire monthly:
-#   0 = not burned in the year
-#   1..12 = month assigned to burned pixel
-#   0 is a VALID value; GeoTIFF NoData is reserved as 255.
-#   Annual burned/no-burn, burned-year frequency, last-fire year,
-#   years-since-fire, and rolling fire metrics are derived locally.
-#
-# Canopy disturbance:
-#   Preserve the ORIGINAL source frequency values 1..12.
-#   No threshold/binarization is applied during export.
-#   Masked/background pixels are written as NoData=0.
-#   If a binary disturbance mask is needed locally, use >1 there.
-#   Source product is Collection 10.1 and covers 1988-2024.
-#
-# MapBiomas Alerta Brasil:
-#   Single accumulated binary assessment layer for 2019-2025.
-#   Coverage is Brazil (not Cerrado-only).
-#   1 = deforested sometime in the period; 0 = no mapped alert.
-#   0 is a VALID value; GeoTIFF NoData is reserved as 255.
-#   This is a period-level corroboration layer, not an annual loss product.
-#
-# Native mask legacy:
-#   Retained only for backwards compatibility with the old pipeline.
-#   Disabled by default. New COL11_V2 work should use full LULC + secondary vegetation
-#   to construct the analysis mask locally.
-# ============================================================
 
 
+# Canonical source stack:
+#   LULC
+#   secondary vegetation
+#   fire
+#   canopy disturbance
+#   irrigation systems
+#   pasture vigor
+#   MapBiomas Alerta
+#
 # ============================================================
 # 0. EDIT THIS BLOCK ONLY FOR NORMAL RUNS
 # ============================================================
@@ -73,13 +50,11 @@
 EXPORT_THEMES = {
     "lulc": True,
     "secondary_vegetation": True,
-    "secondary_vegetation_age": True,
     "fire": True,
     "canopy_disturbance": True,
+    "irrigation": True,
+    "pasture_vigor": True,
     "mapbiomas_alerta": True,
-
-    # Legacy product. Normally keep False.
-    "native_mask_legacy": False,
 }
 
 # Inspect what would be submitted without starting EE export tasks.
@@ -95,10 +70,10 @@ VALIDATE_SOURCE_BANDS = True
 FORCE_REEXPORT_YEARS = {
     "lulc": [],
     "secondary_vegetation": [],
-    "secondary_vegetation_age": [],
     "fire": [],
     "canopy_disturbance": [],
-    "native_mask_legacy": [],
+    "irrigation": [],
+    "pasture_vigor": [],
 }
 
 # Single accumulated asset.
@@ -108,12 +83,36 @@ FORCE_REEXPORT_ALERTA = False
 # None = no cap.
 MAX_NEW_TASKS = None
 
+# ------------------------------------------------------------
+# OPTIONAL TASK GATE
+# ------------------------------------------------------------
+# Useful when an existing long-running EE export must finish before
+# this notebook starts the new batch.
+#
+# With WAIT_FOR_EE_TASK_BEFORE_EXPORT=True, the notebook remains alive,
+# checks the task periodically, and submits the enabled themes ONLY after
+# that task reaches COMPLETED.
+#
+# If the watched task fails/cancels, this notebook stops without launching
+# the new batch.
+WAIT_FOR_EE_TASK_BEFORE_EXPORT = True
+WAIT_FOR_EE_TASK_ID = "DYFKC3MOJ6TKBCOZRYZ3TBDQ"
+WAIT_POLL_SECONDS = 60
+
 # GCP / GCS.
 GCP_PROJECT = "mapbiomas-brazil"
 BUCKET_NAME = "shared-development-storage"
 
 # All themes use the same standardized directory convention:
 #     <GCS_TEMP_ROOT>/<theme>/
+#
+# Annual object prefixes:
+#     lulc_YEAR
+#     secondary_vegetation_YEAR
+#     fire_monthly_YEAR
+#     canopy_disturbance_YEAR
+#     irrigation_YEAR
+#     pasture_vigor_YEAR
 GCS_TEMP_ROOT = "AUXILIARES/DEGRADACAO/COL_11/temp"
 
 # Export behavior.
@@ -130,6 +129,9 @@ FILE_DIMENSIONS = None
 
 # Uncomment in Google Colab if needed:
 # %pip install -U earthengine-api google-cloud-storage
+
+import time
+from datetime import datetime, timezone
 
 import ee
 from google.cloud import storage
@@ -159,10 +161,6 @@ gcs_client = storage.Client(project=GCP_PROJECT)
 # 3. SOURCE ASSETS / YEARS
 # ============================================================
 
-BIOMES_ASSET = (
-    "projects/mapbiomas-workspace/"
-    "AUXILIAR/biome_2025_buf5k_30m"
-)
 
 LULC_ASSET = (
     "projects/mapbiomas-public/assets/brazil/lulc/"
@@ -175,11 +173,6 @@ DSV_ASSET = (
     "mapbiomas_brazil_collection11_deforestation_secondary_vegetation_v5"
 )
 
-SECONDARY_AGE_ASSET = (
-    "projects/mapbiomas-brazil/assets/"
-    "DEGRADATION/COLLECTION-11/public/"
-    "degradation_secondaryVegetation_col11_v1"
-)
 
 FIRE_MONTHLY_ASSET = (
     "projects/mapbiomas-public/assets/brazil/fire/"
@@ -193,6 +186,18 @@ CANOPY_DISTURBANCE_ASSET = (
     "degradation_canopy_disturbance_frequency_v2"
 )
 
+IRRIGATION_ASSET = (
+    "projects/mapbiomas-public/assets/brazil/lulc/"
+    "collection11/"
+    "mapbiomas_brazil_collection11_agriculture_irrigation_systems_v1"
+)
+
+PASTURE_VIGOR_ASSET = (
+    "projects/mapbiomas-public/assets/brazil/lulc/"
+    "collection11/"
+    "mapbiomas_brazil_collection11_pasture_vigor_v1"
+)
+
 MB_ALERTA_ASSET = (
     "projects/ee-ipam-cerrado/assets/ancillary/"
     "MBAlerta_2019-2025_v20260515_img_brasil"
@@ -201,79 +206,44 @@ MB_ALERTA_ASSET = (
 YEARS = {
     "lulc": list(range(1985, 2026)),
     "secondary_vegetation": list(range(1987, 2026)),
-    "secondary_vegetation_age": list(range(1987, 2026)),
     "fire": list(range(1985, 2026)),
     "canopy_disturbance": list(range(1988, 2025)),
-    "native_mask_legacy": list(range(1985, 2026)),
+    "irrigation": list(range(1985, 2026)),
+    "pasture_vigor": list(range(2000, 2026)),
 }
 
 ASSET_IDS = {
     "lulc": LULC_ASSET,
     "secondary_vegetation": DSV_ASSET,
-    "secondary_vegetation_age": SECONDARY_AGE_ASSET,
     "fire": FIRE_MONTHLY_ASSET,
     "canopy_disturbance": CANOPY_DISTURBANCE_ASSET,
+    "irrigation": IRRIGATION_ASSET,
+    "pasture_vigor": PASTURE_VIGOR_ASSET,
     "mapbiomas_alerta": MB_ALERTA_ASSET,
-    "native_mask_legacy": LULC_ASSET,
 }
 
 BAND_TEMPLATES = {
     "lulc": "classification_{year}",
     "secondary_vegetation": "classification_{year}",
-    "secondary_vegetation_age": "age_{year}",
     "fire": "burned_monthly_{year}",
     "canopy_disturbance": "canopy_disturbance_frequency_{year}",
-    "native_mask_legacy": "classification_{year}",
+    "irrigation": "classification_{year}",
+    "pasture_vigor": "classification_{year}",
 }
 
 GCS_DIRS = {
     "lulc": f"{GCS_TEMP_ROOT}/lulc",
     "secondary_vegetation": f"{GCS_TEMP_ROOT}/secondary_vegetation",
-    "secondary_vegetation_age": f"{GCS_TEMP_ROOT}/secondary_vegetation_age",
     "fire": f"{GCS_TEMP_ROOT}/fire",
     "canopy_disturbance": f"{GCS_TEMP_ROOT}/canopy_disturbance",
+    "irrigation": f"{GCS_TEMP_ROOT}/irrigation",
+    "pasture_vigor": f"{GCS_TEMP_ROOT}/pasture_vigor",
     "mapbiomas_alerta": f"{GCS_TEMP_ROOT}/mapbiomas_alerta",
-
-    # Legacy nativeMask was historically written directly under temp/.
-    "native_mask_legacy": GCS_TEMP_ROOT,
 }
 
 
 # ============================================================
-# 4. LEGACY NATIVE-MASK RULES
-# ============================================================
-
-# Preserved from the previous exporter for backwards compatibility.
-native_classes = {
-    "amazonia":       [3, 4, 5, 6, 11, 12, 49, 50],
-    "caatinga":       [3, 4, 5, 11, 12, 49, 50, 77],
-    "cerrado":        [3, 4, 5, 11, 12, 49, 50],
-    "mata_atlantica": [3, 4, 5, 11, 12, 49, 50],
-    "pampa":          [3, 4, 5, 11, 12, 49, 50, 84],
-    "pantanal":       [3, 4, 5, 7, 11, 12, 49, 50],
-}
-
-ignore_classes = {
-    "amazonia":       [13, 29, 32],
-    "caatinga":       [13, 29, 32],
-    "cerrado":        [13, 29, 32],
-    "mata_atlantica": [13, 29, 32],
-    "pampa":          [13, 29, 32],
-    "pantanal":       [13, 29, 32, 33],
-}
-
-biomes_dict = {
-    "amazonia":       1,
-    "caatinga":       2,
-    "cerrado":        3,
-    "mata_atlantica": 4,
-    "pampa":          5,
-    "pantanal":       6,
-}
-
-
-# ============================================================
-# 5. EE IMAGE HANDLES
+# 4. EE IMAGE HANDLES
 # ============================================================
 
 IMAGES = {
@@ -281,14 +251,9 @@ IMAGES = {
     for key, asset_id in ASSET_IDS.items()
 }
 
-# Share the same object for the two LULC-based themes.
-IMAGES["native_mask_legacy"] = IMAGES["lulc"]
-
-biomes = ee.Image(BIOMES_ASSET)
-
 
 # ============================================================
-# 6. OUTPUT NAMING
+# 5. OUTPUT NAMING
 # ============================================================
 
 def output_name(theme, year=None):
@@ -300,17 +265,17 @@ def output_name(theme, year=None):
     if theme == "secondary_vegetation":
         return f"secondary_vegetation_{year}"
 
-    if theme == "secondary_vegetation_age":
-        return f"secondary_vegetation_age_{year}"
-
     if theme == "fire":
         return f"fire_monthly_{year}"
 
     if theme == "canopy_disturbance":
         return f"canopy_disturbance_{year}"
 
-    if theme == "native_mask_legacy":
-        return f"nativeMask-classification_{year}"
+    if theme == "irrigation":
+        return f"irrigation_{year}"
+
+    if theme == "pasture_vigor":
+        return f"pasture_vigor_{year}"
 
     if theme == "mapbiomas_alerta":
         return "mapbiomas_alerta_2019_2025"
@@ -326,62 +291,8 @@ def file_prefix(theme, year=None):
 
 
 # ============================================================
-# 7. SOURCE / ANALYSIS TRANSFORMS
+# 6. SOURCE / ANALYSIS TRANSFORMS
 # ============================================================
-
-def build_native_mask_year(year):
-    """
-    Legacy categorical nativeMask:
-    eligible native + ignored/connectivity classes retain their
-    ORIGINAL Collection 11 LULC values; all other pixels are masked.
-    """
-
-    band_name = f"classification_{year}"
-
-    lulc = (
-        IMAGES["lulc"]
-        .select(band_name)
-        .toUint8()
-    )
-
-    # Empty masked image with source projection/type.
-    recipe = lulc.updateMask(
-        ee.Image.constant(0)
-    )
-
-    for biome_name, biome_id in biomes_dict.items():
-
-        classes_to_keep = (
-            native_classes[biome_name]
-            + ignore_classes[biome_name]
-        )
-
-        class_mask = (
-            lulc
-            .remap(
-                classes_to_keep,
-                [1] * len(classes_to_keep),
-                defaultValue=0,
-            )
-            .eq(1)
-        )
-
-        biome_mask = biomes.eq(biome_id)
-
-        piece = (
-            lulc
-            .updateMask(class_mask)
-            .updateMask(biome_mask)
-        )
-
-        recipe = recipe.blend(piece)
-
-    return (
-        recipe
-        .rename(band_name)
-        .toUint8()
-    )
-
 
 def prepare_annual_export(theme, year):
     """
@@ -395,27 +306,10 @@ def prepare_annual_export(theme, year):
 
     band_name = BAND_TEMPLATES[theme].format(year=year)
 
-    if theme == "native_mask_legacy":
-
-        source_band = (
-            IMAGES["lulc"]
-            .select(band_name)
-        )
-
-        analysis = build_native_mask_year(year)
-
-        return {
-            "source_band": source_band,
-            "export_image": analysis.unmask(0),
-            "region": biomes.geometry(),
-            "nodata": 0,
-            "semantic_note": (
-                "legacy biome-filtered nativeMask; "
-                "original LULC classes retained"
-            ),
-        }
-
-    source_band = IMAGES[theme].select(band_name)
+    source_band = (
+        IMAGES[theme]
+        .select(band_name)
+    )
 
     if theme == "lulc":
 
@@ -447,31 +341,6 @@ def prepare_annual_export(theme, year):
             "region": IMAGES[theme].geometry(),
             "nodata": 0,
             "semantic_note": "original DSV class 1-7",
-        }
-
-    if theme == "secondary_vegetation_age":
-
-        # Official decoding rule supplied for this project:
-        #     age = floor(raw / 100)
-        #
-        # Keep only positive packed source values as valid age pixels.
-        analysis = (
-            source_band
-            .updateMask(source_band.gt(0))
-            .divide(100)
-            .floor()
-            .toUint8()
-            .rename(f"secondary_vegetation_age_{year}")
-        )
-
-        return {
-            "source_band": source_band,
-            "export_image": analysis.unmask(0),
-            "region": IMAGES[theme].geometry(),
-            "nodata": 0,
-            "semantic_note": (
-                "decoded secondary vegetation age: floor(raw/100)"
-            ),
         }
 
     if theme == "fire":
@@ -514,6 +383,46 @@ def prepare_annual_export(theme, year):
             "nodata": 0,
             "semantic_note": (
                 "original canopy disturbance frequency 1-12"
+            ),
+        }
+
+    if theme == "irrigation":
+
+        # Preserve the original Collection 11 irrigation-system
+        # categorical values (1-3). No remap/binarization.
+        analysis = (
+            source_band
+            .toUint8()
+            .rename(band_name)
+        )
+
+        return {
+            "source_band": source_band,
+            "export_image": analysis.unmask(0),
+            "region": IMAGES[theme].geometry(),
+            "nodata": 0,
+            "semantic_note": (
+                "original Collection 11 irrigation-system class 1-3"
+            ),
+        }
+
+    if theme == "pasture_vigor":
+
+        # Preserve the original Collection 11 pasture-vigor
+        # categorical values (1-3). No remap/binarization.
+        analysis = (
+            source_band
+            .toUint8()
+            .rename(band_name)
+        )
+
+        return {
+            "source_band": source_band,
+            "export_image": analysis.unmask(0),
+            "region": IMAGES[theme].geometry(),
+            "nodata": 0,
+            "semantic_note": (
+                "original Collection 11 pasture-vigor class 1-3"
             ),
         }
 
@@ -859,7 +768,7 @@ def submit_export(
 
 
 # ============================================================
-# 9. SOURCE-BAND VALIDATION
+# 8. SOURCE-BAND VALIDATION
 # ============================================================
 
 def validate_expected_bands():
@@ -870,13 +779,13 @@ def validate_expected_bands():
     annual_themes = [
         "lulc",
         "secondary_vegetation",
-        "secondary_vegetation_age",
         "fire",
         "canopy_disturbance",
-        "native_mask_legacy",
+        "irrigation",
+        "pasture_vigor",
     ]
 
-    # Avoid querying LULC twice if both LULC and nativeMask are enabled.
+    # Avoid duplicate band queries when enabled themes share an asset.
     checked_asset_ids = set()
 
     print()
@@ -965,6 +874,174 @@ def validate_expected_bands():
 
 
 # ============================================================
+# 9. OPTIONAL WAIT FOR AN EXISTING EE TASK
+# ============================================================
+
+TERMINAL_SUCCESS_STATES = {
+    "COMPLETED",
+}
+
+TERMINAL_FAILURE_STATES = {
+    "FAILED",
+    "CANCELLED",
+    "CANCEL_REQUESTED",
+}
+
+
+def get_ee_task_status(task_id):
+    """
+    Fetch one Earth Engine task status by task ID.
+
+    ee.data.getTaskStatus() normally returns a list, but this helper
+    tolerates either a list or a single dictionary.
+    """
+
+    try:
+        raw = ee.data.getTaskStatus([task_id])
+    except Exception:
+        # Compatibility fallback for client-library variants that accept
+        # a single task ID rather than a one-element list.
+        raw = ee.data.getTaskStatus(task_id)
+
+    if isinstance(raw, list):
+        if not raw:
+            raise RuntimeError(
+                f"No Earth Engine task found for ID {task_id}"
+            )
+        status = raw[0]
+    elif isinstance(raw, dict):
+        status = raw
+    else:
+        raise RuntimeError(
+            "Unexpected Earth Engine task-status response "
+            f"for {task_id}: {type(raw).__name__}"
+        )
+
+    return status
+
+
+def wait_for_existing_ee_task():
+    """
+    Block new export submission until WAIT_FOR_EE_TASK_ID completes.
+
+    The Colab/runtime must remain alive for this watcher to continue.
+    """
+
+    if not WAIT_FOR_EE_TASK_BEFORE_EXPORT:
+        print()
+        print("Task gate: OFF")
+        return
+
+    task_id = str(WAIT_FOR_EE_TASK_ID).strip()
+
+    if not task_id:
+        raise ValueError(
+            "WAIT_FOR_EE_TASK_BEFORE_EXPORT=True but "
+            "WAIT_FOR_EE_TASK_ID is empty."
+        )
+
+    if WAIT_POLL_SECONDS < 10:
+        raise ValueError(
+            "WAIT_POLL_SECONDS should be at least 10 seconds."
+        )
+
+    print()
+    print("====================================================")
+    print("WAITING FOR EXISTING EARTH ENGINE TASK")
+    print("====================================================")
+    print(f"Task ID:       {task_id}")
+    print(f"Poll interval: {WAIT_POLL_SECONDS} seconds")
+    print(
+        "No new COL11_V2 export tasks will be submitted "
+        "until this task is COMPLETED."
+    )
+    print("====================================================")
+    print()
+
+    last_state = None
+    transient_errors = 0
+
+    while True:
+
+        try:
+            status = get_ee_task_status(task_id)
+            transient_errors = 0
+
+        except Exception as exc:
+            transient_errors += 1
+
+            now = datetime.now(
+                timezone.utc
+            ).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+            print(
+                f"[{now}] task-status check failed "
+                f"({transient_errors}): {exc}"
+            )
+
+            # Network/API hiccups should not abort the watcher immediately.
+            # A persistent problem is still surfaced after several retries.
+            if transient_errors >= 10:
+                raise RuntimeError(
+                    "Could not read the watched Earth Engine task "
+                    "status after 10 consecutive attempts."
+                ) from exc
+
+            time.sleep(WAIT_POLL_SECONDS)
+            continue
+
+        state = str(
+            status.get("state", "UNKNOWN")
+        ).upper()
+
+        description = status.get(
+            "description",
+            ""
+        )
+
+        now = datetime.now(
+            timezone.utc
+        ).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        if state != last_state:
+            print(
+                f"[{now}] {task_id} | "
+                f"{state} | {description}"
+            )
+            last_state = state
+        else:
+            print(
+                f"[{now}] {task_id} | {state}"
+            )
+
+        if state in TERMINAL_SUCCESS_STATES:
+
+            print()
+            print(
+                "Watched task COMPLETED. "
+                "Starting COL11_V2 export submission..."
+            )
+            print()
+
+            return
+
+        if state in TERMINAL_FAILURE_STATES:
+
+            error_message = (
+                status.get("error_message")
+                or status.get("error")
+                or "No Earth Engine error message returned."
+            )
+
+            raise RuntimeError(
+                f"Watched Earth Engine task {task_id} "
+                f"ended as {state}: {error_message}"
+            )
+
+        time.sleep(WAIT_POLL_SECONDS)
+
+
+# ============================================================
 # 10. PRINT EXPORT PLAN
 # ============================================================
 
@@ -972,12 +1049,19 @@ def print_plan():
 
     print()
     print("====================================================")
-    print("COL11_V2 GCS EXPORTER v4.4")
+    print("COL11_V2 GCS EXPORTER v4.9")
     print("====================================================")
     print(f"GCP project: {GCP_PROJECT}")
     print(f"GCS bucket:  gs://{BUCKET_NAME}")
     print(f"GCS root:    {GCS_TEMP_ROOT}")
     print(f"DRY_RUN:     {DRY_RUN}")
+    print(
+        "Task gate:   "
+        f"{'ON' if WAIT_FOR_EE_TASK_BEFORE_EXPORT else 'OFF'}"
+    )
+    if WAIT_FOR_EE_TASK_BEFORE_EXPORT:
+        print(f"Wait task:   {WAIT_FOR_EE_TASK_ID}")
+        print(f"Poll every:  {WAIT_POLL_SECONDS} s")
     print()
 
     print("Themes:")
@@ -1007,13 +1091,17 @@ def print_plan():
 print_plan()
 validate_expected_bands()
 
+# If enabled, this blocks here until the existing EE task completes.
+# The duplicate/GCS checks below still run normally after the gate opens.
+wait_for_existing_ee_task()
+
 ANNUAL_EXPORT_ORDER = [
     "lulc",
     "secondary_vegetation",
-    "secondary_vegetation_age",
     "fire",
     "canopy_disturbance",
-    "native_mask_legacy",
+    "irrigation",
+    "pasture_vigor",
 ]
 
 for theme in ANNUAL_EXPORT_ORDER:
@@ -1171,3 +1259,16 @@ print("====================================================")
 # Use as accumulated 2019-2025 corroboration / assessment,
 # not as an annual year-of-loss product.
 # ============================================================
+
+# Secondary vegetation age (LOCAL DERIVATIVE)
+# -------------------------------------------
+# Do NOT export a separate age source from Earth Engine.
+# Derive vegetation age locally from the annual secondary-vegetation
+# trajectory after ingest, alongside the locally derived fire-history
+# metrics. This keeps GCS limited to canonical source layers.
+#
+
+# Irrigation and pasture vigor are exported as raw categorical source layers.
+# They should annotate fragment surroundings / transition context locally and
+# should NOT participate in fragment geometry unless an explicit future
+# methodological rule says otherwise.
