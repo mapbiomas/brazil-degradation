@@ -2,9 +2,9 @@
 // dhemerson.costa@ipam.org.br
 
 // set output version 
-var version_in = 2;
-var version_out = 2;
-var collectionId = 101;
+var version_in = 1;
+var version_out = 1;
+var collectionId = 11;
 
 // set filename
 var fileName = 'degradation_edge_age_col' + collectionId + '_v' + version_out;
@@ -13,12 +13,12 @@ var fileName = 'degradation_edge_age_col' + collectionId + '_v' + version_out;
 var years = [1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
              1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
              2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017,
-             2018, 2019, 2020, 2021, 2022, 2023, 2024];
+             2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
 
   
 // read edges for the version i and binarize 
-var edge_i_bin = ee.Image('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/degradation_edge_area_col101_v2')
+var edge_i_bin = ee.Image('projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-11/public/degradation_edge_area_col11_v1')
   .gte(1); // binarize
 
 // for each year
@@ -69,7 +69,7 @@ ages_i = ages_i.set('territory', 'BRAZIL')
 Export.image.toAsset({
 	image: ages_i.int8(),
   description: fileName,
-  assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-10/public/' + fileName,
+  assetId: 'projects/mapbiomas-brazil/assets/DEGRADATION/COLLECTION-11/public/' + fileName,
   region: edge_i_bin.geometry(),
   scale: 30,
   maxPixels: 1e13,
